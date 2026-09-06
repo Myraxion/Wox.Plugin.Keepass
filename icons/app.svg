@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <!-- KeePassXC 标志性绿蓝渐变底板 -->
+    <linearGradient id="sqGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#43A047"/>
+      <stop offset="100%" stop-color="#1B5E20"/>
+    </linearGradient>
+    <!-- 纯净银白金属感渐变（基于用户坐标系，确保全件光照完全一致） -->
+    <linearGradient id="sqMetal" x1="64" y1="25" x2="64" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="sqGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Wox 风格连续圆角背景 (Squircle) -->
+  <rect x="6" y="6" width="116" height="116" rx="28" fill="url(#sqGreen)"/>
+  
+  <!-- 内嵌轻微半透明光环，呼应 KeePassXC 的环形美学 -->
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.16"/>
+
+  <!-- 原创几何密码钥匙主体（按比例略微放大 1.25 倍，在小尺寸下更加突出清晰） -->
+  <g transform="translate(64, 63) scale(1.25) translate(-64, -63)">
+    <!-- 钥匙一体化单路径（圆头、柄身、单侧齿牙完全融为一体，彻底消灭接缝与色差） -->
+    <path fill="url(#sqMetal)" d="M 56.34 68.66 A 22.5 22.5 0 1 1 71.66 68.66
+             L 71.66 74 
+             L 79.16 74 A 1.5 1.5 0 0 1 80.66 75.5 L 80.66 77.5 A 1.5 1.5 0 0 1 79.16 79 L 71.66 79
+             L 71.66 83
+             L 83.16 83 A 1.5 1.5 0 0 1 84.66 84.5 L 84.66 86.5 A 1.5 1.5 0 0 1 83.16 88 L 71.66 88
+             L 71.66 94 C 71.66 97.31 68.97 100 65.66 100 L 62.34 100 C 59.03 100 56.34 97.31 56.34 94
+             L 56.34 68.66 Z
+             M 64 36 A 11.5 11.5 0 1 0 64 59 A 11.5 11.5 0 1 0 64 36 Z" />
+
+    <!-- 中心悬浮的金色密码锁孔，增加安全感焦点 -->
+    <circle cx="64" cy="47.5" r="4.8" fill="url(#sqGold)"/>
+  </g>
+</svg>
