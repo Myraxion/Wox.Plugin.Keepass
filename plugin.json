@@ -1,20 +1,14 @@
 {
-  "Id": "{{.Id}}",
-  "TriggerKeywords": [
-    "{{.TriggerKeyword}}"
-  ],
-  "Name": "{{.Name}}",
-  "Description": "{{.Description}}",
-  "Author": "{{.Author}}",
+  "Id": "1e0b1d37-f8b7-47c1-bbf9-9201930fcc82",
+  "TriggerKeywords": ["kp", "keepass"],
+  "Name": "KeePass",
+  "Description": "Fast and secure credential search for KeePass.",
+  "Author": "Myraxion",
   "Version": "0.0.6",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
-  "Website": "{{.Website}}",
+  "Website": "https://github.com/Myraxion/Wox.Plugin.Keepass",
   "Entry": "index.js",
   "Icon": "relative:icons/app.svg",
-  "SupportedOS": [
-    "windows",
-    "linux",
-    "darwin"
-  ]
+  "SupportedOS": ["windows", "linux", "darwin"]
 }
