@@ -25,6 +25,7 @@ test("query", async () => {
       }
     } as PublicAPI
   })
-  const results = await plugin.query(ctx, query)
+  const response = await plugin.query(ctx, query)
+  const results = Array.isArray(response) ? response : response.Results
   expect(results.length).toBeGreaterThan(0)
 })
