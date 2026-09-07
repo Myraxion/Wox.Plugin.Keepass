@@ -2,6 +2,8 @@ import { Result } from "@wox-launcher/wox-plugin"
 import * as kdbxweb from "kdbxweb"
 import { SearchToken, tokenizeQuery } from "./tokenizer"
 import { resolveEntryIcon } from "./icons"
+import { buildEntryPreview } from "./preview"
+import { getEntryTotp } from "./totp"
 
 export interface FlattenedEntry {
   entry: kdbxweb.KdbxEntry
@@ -158,7 +160,7 @@ export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string
   return 40
 }
 
-export function searchEntries(db: kdbxweb.Kdbx, search: string): Result[] {
+export function searchEntries(db: kdbxweb.Kdbx, search: string, timestamp?: number): Result[] {
   const trimmed = search.trim()
   if (!trimmed) {
     return []
@@ -191,10 +193,24 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string): Result[] {
     return a.entry.userName.localeCompare(b.entry.userName)
   })
 
-  return matched.map(m => ({
-    Title: m.entry.title,
-    SubTitle: m.entry.userName,
-    Icon: resolveEntryIcon(m.entry.entry, db),
-    Score: m.score
-  }))
+  return matched.map(m => {
+    const otpField = getFieldText(m.entry.entry.fields.get("otp"))
+    const totpInfo = getEntryTotp(otpField, timestamp)
+    const result: Result = {
+      Title: m.entry.title,
+      SubTitle: m.entry.userName,
+      Icon: resolveEntryIcon(m.entry.entry, db),
+      Score: m.score,
+      Preview: buildEntryPreview(m.entry, timestamp)
+    }
+    if (totpInfo) {
+      result.Tails = [
+        {
+          Type: "text",
+          Text: totpInfo.badge
+        }
+      ]
+    }
+    return result
+  })
 }

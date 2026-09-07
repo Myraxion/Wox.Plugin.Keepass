@@ -269,6 +269,33 @@ describe("Icons & Search Engine", () => {
       expect(results[1].Title).toBe("Github - 副本")
       expect(results[1].SubTitle).toBe("user111")
       expect(results[1].Score).toBe(90)
+
+      // Preview card validation
+      expect(results[0].Preview).toBeDefined()
+      expect(results[0].Preview?.PreviewType).toBe("markdown")
+      expect(results[0].Preview?.PreviewData).toContain("# Github")
+      expect(results[0].Preview?.PreviewData).toContain("- **密码**: ••••••••••••")
+      expect(results[0].Preview?.PreviewTags?.some(t => t.Tooltip === "分组")).toBe(true)
+
+      // Tails validation: Github has TOTP, Github - 副本 does not
+      expect(results[0].Tails).toBeDefined()
+      expect(results[0].Tails?.[0]?.Type).toBe("text")
+      expect(results[0].Tails?.[0]?.Text).toMatch(/^\d{3} \d{3} \(\d{1,2}s\)$/)
+      expect(results[1].Tails).toBeUndefined()
+    })
+
+    test("searchEntries attaches deterministic TOTP countdown badge and preview with timestamp", () => {
+      const fixedTime = 1700000012000 // 28s remaining
+      const results = searchEntries(db, "Github", fixedTime)
+
+      expect(results.length).toBeGreaterThanOrEqual(2)
+      const githubResult = results[0]
+      expect(githubResult.Title).toBe("Github")
+      expect(githubResult.Tails).toBeDefined()
+      expect(githubResult.Tails?.[0]?.Text).toContain("(28s)")
+
+      expect(githubResult.Preview?.PreviewData).toContain("(28s)")
+      expect(githubResult.Preview?.PreviewData).toContain("••••••••••••")
     })
   })
 })
