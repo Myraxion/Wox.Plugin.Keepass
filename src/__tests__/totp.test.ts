@@ -1,4 +1,4 @@
-import { parseKeePassTotp, getEntryTotp, formatTotpToken } from "../totp"
+import { parseKeePassTotp, getEntryTotp, formatTotpToken, isSteamEncoder, generateSteamGuardCode } from "../totp"
 
 describe("TOTP Generator & Parser", () => {
   const valid6DigitUri = "otpauth://totp/Example:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Example&digits=6&period=30"
@@ -102,6 +102,44 @@ describe("TOTP Generator & Parser", () => {
       expect(getEntryTotp("")).toBeNull()
       expect(getEntryTotp(undefined)).toBeNull()
       expect(getEntryTotp("invalid")).toBeNull()
+    })
+  })
+
+  describe("Steam® Guard TOTP support (KeePassXC encoder=steam)", () => {
+    const steamUri = "otpauth://totp/steamcommunity.com:test?secret=STFHPQRSNRRF5FNYFTI5WKLYLBBBPWLG&period=30&digits=5&issuer=steamcommunity.com&encoder=steam"
+
+    test("detects Steam encoder query parameter", () => {
+      expect(isSteamEncoder(steamUri)).toBe(true)
+      expect(isSteamEncoder("otpauth://totp/steam?secret=XYZ&encoder=Steam")).toBe(true)
+      expect(isSteamEncoder(valid6DigitUri)).toBe(false)
+      expect(isSteamEncoder("invalid-uri")).toBe(false)
+    })
+
+    test("generates 5-character alphanumeric Steam code with custom alphabet", () => {
+      const steamChars = /^[23456789BCDFGHJKMNPQRTVWXY]{5}$/
+
+      // Test deterministic code at 1700000000000 ms
+      const timestamp = 1700000000000 // 1700000000 % 30 = 20s into period -> 10s remaining
+      const result = getEntryTotp(steamUri, timestamp)
+
+      expect(result).not.toBeNull()
+      expect(result?.token).toBe("GX7CW")
+      expect(result?.token).toMatch(steamChars)
+      expect(result?.formattedToken).toBe("GX7CW") // 5-character code is not split
+      expect(result?.remainingSeconds).toBe(10)
+      expect(result?.badge).toBe("GX7CW (10s)")
+      expect(result?.period).toBe(30)
+    })
+
+    test("never contains forbidden characters (0, 1, A, E, I, O, U)", () => {
+      const forbidden = /[01AEIOUaeiou]/
+      const secretBytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+
+      for (let t = 0; t < 50; t++) {
+        const code = generateSteamGuardCode(secretBytes, t * 30000)
+        expect(code).toHaveLength(5)
+        expect(forbidden.test(code)).toBe(false)
+      }
     })
   })
 })
