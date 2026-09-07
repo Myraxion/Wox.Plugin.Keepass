@@ -1,10 +1,14 @@
 import { PublicAPI, Result } from "@wox-launcher/wox-plugin"
 import * as kdbxweb from "kdbxweb"
-import { SearchToken, tokenizeQuery } from "./tokenizer"
+import { SearchToken, tokenizeQuery, ExcludeRule, parseExcludeRules } from "./tokenizer"
 import { resolveEntryIcon } from "./icons"
 import { buildEntryPreview } from "./preview"
 import { getEntryTotp } from "./totp"
 import { buildEntryActions, BuildActionsOptions } from "./actions"
+
+export interface SearchOptions extends BuildActionsOptions {
+  excludeRules?: string | ExcludeRule[]
+}
 
 const fallbackApi: PublicAPI = {
   Copy: async () => {},
@@ -167,9 +171,30 @@ export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string
   return 40
 }
 
-export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: BuildActionsOptions): Result[] {
+export function isEntryExcluded(entry: FlattenedEntry, rules: ExcludeRule[]): boolean {
+  if (!rules || rules.length === 0) return false
+
+  for (const rule of rules) {
+    const target = rule.value.toLowerCase()
+    if (!target) continue
+
+    if (rule.type === "t") {
+      if (entry.tags.some(tag => tag.toLowerCase().includes(target))) {
+        return true
+      }
+    } else if (rule.type === "g") {
+      if (entry.group.toLowerCase().includes(target) || entry.groupName.toLowerCase().includes(target)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: SearchOptions): Result[] {
   let activeApi: PublicAPI = fallbackApi
-  let activeOptions: BuildActionsOptions = options || {}
+  let activeOptions: SearchOptions = options || {}
 
   if (typeof apiOrTimestamp === "number") {
     activeOptions = { ...activeOptions, timestamp: apiOrTimestamp }
@@ -187,11 +212,16 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?:
     return []
   }
 
+  const excludeRules = typeof activeOptions.excludeRules === "string" ? parseExcludeRules(activeOptions.excludeRules) : activeOptions.excludeRules || []
+
   const allEntries = getAllEntries(db)
   const matched: { entry: FlattenedEntry; score: number }[] = []
 
   for (let i = 0; i < allEntries.length; i++) {
     const item = allEntries[i]
+    if (isEntryExcluded(item, excludeRules)) {
+      continue
+    }
     if (matchAllTokens(item, tokens)) {
       const score = calculateRelevanceScore(item, trimmed, tokens)
       matched.push({ entry: item, score })

@@ -58,3 +58,73 @@ export function tokenizeQuery(query: string): SearchToken[] {
 
   return tokens
 }
+
+export interface ExcludeRule {
+  type: "t" | "g"
+  value: string
+}
+
+/**
+ * Parses comma-separated exclusion rules with strict prefixes (t:, g:)
+ * and support for double-quoted values.
+ */
+export function parseExcludeRules(settingValue: string): ExcludeRule[] {
+  if (!settingValue || !settingValue.trim()) {
+    return []
+  }
+
+  const rawRules: string[] = []
+  let current = ""
+  let inQuotes = false
+
+  for (let i = 0; i < settingValue.length; i++) {
+    const ch = settingValue[i]
+    if (ch === '"') {
+      inQuotes = !inQuotes
+      current += ch
+    } else if (ch === "," && !inQuotes) {
+      if (current.trim().length > 0) {
+        rawRules.push(current.trim())
+      }
+      current = ""
+    } else {
+      current += ch
+    }
+  }
+  if (current.trim().length > 0) {
+    rawRules.push(current.trim())
+  }
+
+  const rules: ExcludeRule[] = []
+
+  for (const raw of rawRules) {
+    const lower = raw.toLowerCase()
+    let type: "t" | "g" | null = null
+    let content = ""
+
+    if (lower.startsWith("t:")) {
+      type = "t"
+      content = raw.slice(2).trim()
+    } else if (lower.startsWith("g:")) {
+      type = "g"
+      content = raw.slice(2).trim()
+    }
+
+    if (!type || !content) {
+      continue
+    }
+
+    let value = content
+    if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+      value = value.slice(1, -1).trim()
+    } else {
+      value = value.replace(/^"|"$/g, "").trim()
+    }
+
+    if (value.length > 0) {
+      rules.push({ type, value })
+    }
+  }
+
+  return rules
+}

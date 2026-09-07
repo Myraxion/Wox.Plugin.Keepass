@@ -63,6 +63,7 @@ export const plugin: Plugin = {
           break
         case "autoLockTimeout":
           config.autoLockTimeout = parseInt(value, 10) || 900
+          session.setAutoLockTimeout(config.autoLockTimeout)
           break
         case "excludeRules":
           config.excludeRules = value || ""
@@ -93,6 +94,51 @@ export const plugin: Plugin = {
       }
     }
 
+    if (session.isUnlocked()) {
+      await session.checkMtime()
+    }
+
+    const searchTrimmed = query.Search.trim()
+    if (searchTrimmed.toLowerCase() === "lock") {
+      session.lock()
+      return {
+        Results: [
+          {
+            Title: "🔒 数据库已锁定",
+            SubTitle: "输入主密码后按 Enter 解锁",
+            Icon: {
+              ImageType: "relative",
+              ImageData: "icons/app.svg"
+            },
+            Actions: [
+              {
+                Name: "解锁",
+                IsDefault: true,
+                PreventHideAfterAction: true,
+                Action: async (actionCtx: Context) => {
+                  const password = query.Search.trim()
+                  if (!password) {
+                    await api.Notify(actionCtx, "请输入主密码")
+                    return
+                  }
+                  try {
+                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
+                    await api.ChangeQuery(actionCtx, {
+                      QueryType: "input",
+                      QueryText: "kp "
+                    })
+                    await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
+                  } catch {
+                    await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+
     if (!session.isUnlocked()) {
       return {
         Results: [
@@ -115,7 +161,7 @@ export const plugin: Plugin = {
                     return
                   }
                   try {
-                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password)
+                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
                     await api.ChangeQuery(actionCtx, {
                       QueryType: "input",
                       QueryText: "kp "
@@ -132,6 +178,8 @@ export const plugin: Plugin = {
       }
     }
 
+    session.touchActivity()
+
     const db = session.getDatabase()
     if (!db || !query.Search || query.Search.trim() === "") {
       return {
@@ -140,7 +188,7 @@ export const plugin: Plugin = {
     }
 
     return {
-      Results: searchEntries(db, query.Search, api)
+      Results: searchEntries(db, query.Search, api, { excludeRules: config.excludeRules })
     }
   }
 }
