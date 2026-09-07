@@ -140,7 +140,7 @@ export const plugin: Plugin = {
     }
 
     return {
-      Results: searchEntries(db, query.Search)
+      Results: searchEntries(db, query.Search, api)
     }
   }
 }

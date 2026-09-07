@@ -1,9 +1,16 @@
-import { Result } from "@wox-launcher/wox-plugin"
+import { PublicAPI, Result } from "@wox-launcher/wox-plugin"
 import * as kdbxweb from "kdbxweb"
 import { SearchToken, tokenizeQuery } from "./tokenizer"
 import { resolveEntryIcon } from "./icons"
 import { buildEntryPreview } from "./preview"
 import { getEntryTotp } from "./totp"
+import { buildEntryActions, BuildActionsOptions } from "./actions"
+
+const fallbackApi: PublicAPI = {
+  Copy: async () => {},
+  Notify: async () => {},
+  Log: async () => {}
+} as unknown as PublicAPI
 
 export interface FlattenedEntry {
   entry: kdbxweb.KdbxEntry
@@ -160,7 +167,16 @@ export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string
   return 40
 }
 
-export function searchEntries(db: kdbxweb.Kdbx, search: string, timestamp?: number): Result[] {
+export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: BuildActionsOptions): Result[] {
+  let activeApi: PublicAPI = fallbackApi
+  let activeOptions: BuildActionsOptions = options || {}
+
+  if (typeof apiOrTimestamp === "number") {
+    activeOptions = { ...activeOptions, timestamp: apiOrTimestamp }
+  } else if (apiOrTimestamp) {
+    activeApi = apiOrTimestamp
+  }
+
   const trimmed = search.trim()
   if (!trimmed) {
     return []
@@ -195,13 +211,14 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, timestamp?: numb
 
   return matched.map(m => {
     const otpField = getFieldText(m.entry.entry.fields.get("otp"))
-    const totpInfo = getEntryTotp(otpField, timestamp)
+    const totpInfo = getEntryTotp(otpField, activeOptions.timestamp)
     const result: Result = {
       Title: m.entry.title,
       SubTitle: m.entry.userName,
       Icon: resolveEntryIcon(m.entry.entry, db),
       Score: m.score,
-      Preview: buildEntryPreview(m.entry, timestamp)
+      Preview: buildEntryPreview(m.entry, activeOptions.timestamp),
+      Actions: buildEntryActions(m.entry, activeApi, activeOptions)
     }
     if (totpInfo) {
       result.Tails = [
