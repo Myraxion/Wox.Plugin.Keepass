@@ -85,9 +85,9 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       expect(mockChild.unref).toHaveBeenCalled()
     })
 
-    test("launches cmd.exe start on win32", () => {
+    test("launches rundll32 on win32", () => {
       defaultUrlOpener("https://github.com", "win32", mockSpawn as unknown as typeof spawn)
-      expect(mockSpawn).toHaveBeenCalledWith("cmd.exe", ["/c", "start", "", "https://github.com"], {
+      expect(mockSpawn).toHaveBeenCalledWith("rundll32.exe", ["url.dll,FileProtocolHandler", "https://github.com"], {
         detached: true,
         stdio: "ignore"
       })
@@ -112,7 +112,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi)
       const defaultAction = actions.find(a => a.IsDefault) as ExecuteResultAction
       expect(defaultAction).toBeDefined()
-      expect(defaultAction.Id).toBe("copy-password")
+      expect(defaultAction.Id).toBeUndefined()
       expect(defaultAction.Name).toBe("复制密码")
       expect(defaultAction.PreventHideAfterAction).toBe(false)
       expect(defaultAction.Icon).toEqual({
@@ -146,9 +146,10 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
     test("configures platform-adaptive hotkey, copy payload, and auto-hide", async () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi, { platform: "win32" })
-      const copyUserAction = actions.find(a => a.Id === "copy-username") as ExecuteResultAction
+      const copyUserAction = actions.find(a => a.Name === "复制用户名") as ExecuteResultAction
 
       expect(copyUserAction).toBeDefined()
+      expect(copyUserAction.Id).toBeUndefined()
       expect(copyUserAction.Name).toBe("复制用户名")
       expect(copyUserAction.Hotkey).toBe("ctrl+u")
       expect(copyUserAction.PreventHideAfterAction).toBe(false)
@@ -167,7 +168,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
     test("assigns cmd+u hotkey on darwin", () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi, { platform: "darwin" })
-      const copyUserAction = actions.find(a => a.Id === "copy-username")
+      const copyUserAction = actions.find(a => a.Name === "复制用户名")
       expect(copyUserAction?.Hotkey).toBe("cmd+u")
     })
   })
@@ -177,9 +178,10 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const fixedTime = 1700000012000
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi, { platform: "win32", timestamp: fixedTime })
-      const copyTotpAction = actions.find(a => a.Id === "copy-totp") as ExecuteResultAction
+      const copyTotpAction = actions.find(a => a.Name === "复制 TOTP") as ExecuteResultAction
 
       expect(copyTotpAction).toBeDefined()
+      expect(copyTotpAction.Id).toBeUndefined()
       expect(copyTotpAction.Name).toBe("复制 TOTP")
       expect(copyTotpAction.Hotkey).toBe("ctrl+t")
       expect(copyTotpAction.PreventHideAfterAction).toBe(false)
@@ -199,14 +201,14 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
     test("assigns cmd+t hotkey on darwin", () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi, { platform: "darwin" })
-      const copyTotpAction = actions.find(a => a.Id === "copy-totp")
+      const copyTotpAction = actions.find(a => a.Name === "复制 TOTP")
       expect(copyTotpAction?.Hotkey).toBe("cmd+t")
     })
 
     test("notifies user when entry has no TOTP configured", async () => {
       const noTotpEntry = allEntries.find(e => e.title === "Dropbox（通行密钥）")!
       const actions: ResultAction[] = buildEntryActions(noTotpEntry, mockApi)
-      const copyTotpAction = actions.find(a => a.Id === "copy-totp") as ExecuteResultAction
+      const copyTotpAction = actions.find(a => a.Name === "复制 TOTP") as ExecuteResultAction
 
       await copyTotpAction.Action(dummyCtx, { ResultId: "1", ResultActionId: "copy-totp", ContextData: {} })
       expect(mockApi.Copy).not.toHaveBeenCalled()
@@ -222,9 +224,10 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
         platform: "win32",
         urlOpener: mockOpener
       })
-      const openUrlAction = actions.find(a => a.Id === "open-url") as ExecuteResultAction
+      const openUrlAction = actions.find(a => a.Name === "打开网址") as ExecuteResultAction
 
       expect(openUrlAction).toBeDefined()
+      expect(openUrlAction.Id).toBeUndefined()
       expect(openUrlAction.Name).toBe("打开网址")
       expect(openUrlAction.Hotkey).toBe("ctrl+o")
       expect(openUrlAction.PreventHideAfterAction).toBe(false)
@@ -241,7 +244,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
     test("assigns cmd+o hotkey on darwin", () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi, { platform: "darwin" })
-      const openUrlAction = actions.find(a => a.Id === "open-url")
+      const openUrlAction = actions.find(a => a.Name === "打开网址")
       expect(openUrlAction?.Hotkey).toBe("cmd+o")
     })
 
@@ -250,7 +253,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       expect(noUrlEntry).toBeDefined()
       const mockOpener = jest.fn()
       const actions: ResultAction[] = buildEntryActions(noUrlEntry, mockApi, { urlOpener: mockOpener })
-      const openUrlAction = actions.find(a => a.Id === "open-url") as ExecuteResultAction
+      const openUrlAction = actions.find(a => a.Name === "打开网址") as ExecuteResultAction
 
       await openUrlAction.Action(dummyCtx, { ResultId: "1", ResultActionId: "open-url", ContextData: {} })
       expect(mockOpener).not.toHaveBeenCalled()
@@ -259,23 +262,57 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
   })
 
   describe("Wox Tab Action Panel Registration", () => {
-    test("all 4 actions register with distinct names, unique IDs, and distinct icons", () => {
+    test("all 4 actions register with distinct names and distinct icons, and omit hardcoded Id", () => {
       const githubEntry = allEntries.find(e => e.title === "Github")!
       const actions: ResultAction[] = buildEntryActions(githubEntry, mockApi)
 
       expect(actions).toHaveLength(4)
 
-      const ids = actions.map(a => a.Id)
       const names = actions.map(a => a.Name)
       const iconPaths = actions.map(a => a.Icon?.ImageData)
 
-      expect(new Set(ids).size).toBe(4)
       expect(new Set(names).size).toBe(4)
       expect(new Set(iconPaths).size).toBe(4)
 
       for (const action of actions) {
+        expect(action.Id).toBeUndefined()
         expect(action.PreventHideAfterAction).toBe(false)
       }
+    })
+  })
+
+  describe("Multi-Entry Actions Isolation", () => {
+    test("actions from different entries execute their own closures without crosstalk", async () => {
+      const githubEntry = allEntries.find(e => e.title === "Github")!
+      const dropboxEntry = allEntries.find(e => e.title === "Dropbox（通行密钥）")!
+
+      const mockOpener = jest.fn()
+      const fixedTime = 1700000012000
+
+      const githubActions = buildEntryActions(githubEntry, mockApi, { urlOpener: mockOpener, timestamp: fixedTime })
+      const dropboxActions = buildEntryActions(dropboxEntry, mockApi, { urlOpener: mockOpener, timestamp: fixedTime })
+
+      const githubOpenUrl = githubActions.find(a => a.Name === "打开网址") as ExecuteResultAction
+      const dropboxOpenUrl = dropboxActions.find(a => a.Name === "打开网址") as ExecuteResultAction
+      const githubCopyTotp = githubActions.find(a => a.Name === "复制 TOTP") as ExecuteResultAction
+      const dropboxCopyTotp = dropboxActions.find(a => a.Name === "复制 TOTP") as ExecuteResultAction
+
+      // 1. Open URL isolation: Github vs Dropbox
+      await githubOpenUrl.Action(dummyCtx, { ResultId: "g", ResultActionId: "act-g", ContextData: {} })
+      expect(mockOpener).toHaveBeenCalledWith("https://github.com")
+
+      await dropboxOpenUrl.Action(dummyCtx, { ResultId: "d", ResultActionId: "act-d", ContextData: {} })
+      expect(mockOpener).toHaveBeenCalledWith("https://www.dropbox.com")
+
+      // 2. TOTP isolation: Github (has TOTP) vs Dropbox (no TOTP)
+      await githubCopyTotp.Action(dummyCtx, { ResultId: "g", ResultActionId: "act-g", ContextData: {} })
+      expect(mockApi.Copy).toHaveBeenCalledWith(dummyCtx, {
+        type: "text",
+        text: "485561"
+      })
+
+      await dropboxCopyTotp.Action(dummyCtx, { ResultId: "d", ResultActionId: "act-d", ContextData: {} })
+      expect(mockApi.Notify).toHaveBeenCalledWith(dummyCtx, "未配置 TOTP")
     })
   })
 

@@ -13,7 +13,7 @@ export function defaultUrlOpener(url: string, platform: string = process.platfor
   if (platform === "darwin") {
     spawnFn("open", [url], { detached: true, stdio: "ignore" }).unref()
   } else if (platform === "win32") {
-    spawnFn("cmd.exe", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref()
+    spawnFn("rundll32.exe", ["url.dll,FileProtocolHandler", url], { detached: true, stdio: "ignore" }).unref()
   } else {
     spawnFn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref()
   }
@@ -31,7 +31,6 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
 
   return [
     {
-      Id: "copy-password",
       Name: "复制密码",
       IsDefault: true,
       PreventHideAfterAction: false,
@@ -48,7 +47,6 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
       }
     },
     {
-      Id: "copy-username",
       Name: "复制用户名",
       Hotkey: `${mod}+u`,
       PreventHideAfterAction: false,
@@ -64,7 +62,6 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
       }
     },
     {
-      Id: "copy-totp",
       Name: "复制 TOTP",
       Hotkey: `${mod}+t`,
       PreventHideAfterAction: false,
@@ -86,7 +83,6 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
       }
     },
     {
-      Id: "open-url",
       Name: "打开网址",
       Hotkey: `${mod}+o`,
       PreventHideAfterAction: false,
