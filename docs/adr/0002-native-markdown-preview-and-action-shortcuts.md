@@ -1,0 +1,3 @@
+# Native Markdown Preview Split-View with Keyboard-Driven Actions
+
+We choose Wox native `markdown` preview over embedded `webview` or structured `list` previews for entry inspection. Native markdown delivers zero-overhead rendering, automatic host theme alignment, and clean formatting for masked passwords, multiline notes, and TOTP countdown badges. Interactive operations (copying password, username, TOTP, or opening URLs) are decoupled from the preview panel and wired directly to Wox keyboard actions (`IsDefault: true` on Enter for password; platform-adaptive `ctrl+*` / `cmd+*` shortcuts for secondary actions) alongside the native Wox `Tab` action panel fallback to ensure reliability across desktop shells.

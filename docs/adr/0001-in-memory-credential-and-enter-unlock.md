@@ -1,0 +1,3 @@
+# In-Memory Credential Caching and Explicit Enter Unlock
+
+We reject writing master passwords or derived keys to persistent storage, caching decrypted database objects purely in memory with idle timeouts. Unlocking must be explicitly triggered via the Enter key rather than on-the-fly keystroke debounce. KDBX4 key derivation functions (Argon2 / AES-KDF) incur significant compute latency (0.5s–1.5s), making keystroke-level decryption cause severe UI lag and excessive CPU usage; furthermore, explicit Enter unlock allows the plugin to immediately wipe plaintext passwords from the launcher query box via `api.ChangeQuery`.
