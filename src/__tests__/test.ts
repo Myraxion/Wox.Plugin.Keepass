@@ -1,31 +1,102 @@
 import { Context, PublicAPI, Query, WoxImage } from "@wox-launcher/wox-plugin"
 import { plugin } from "../index"
 
-test("query", async () => {
-  const ctx = {} as Context
-  const query = {
-    Id: "1",
-    Env: { ActiveWindowTitle: "", ActiveWindowPid: 0, ActiveBrowserUrl: "", ActiveWindowIcon: {} as WoxImage },
-    RawQuery: "wpm install ",
-    Selection: { Type: "text", Text: "", FilePaths: [] },
-    Type: "input",
-    Search: "",
-    TriggerKeyword: "wpm",
-    Command: "install",
-    IsGlobalQuery(): boolean {
-      return false
-    }
-  } as Query
+describe("KeePass Plugin Unconfigured State", () => {
+  let mockApi: PublicAPI
+  let settingChangeHandler: ((ctx: Context, key: string, value: string) => void) | null
+  const settingsStore: Record<string, string> = {}
 
-  await plugin.init(ctx, {
-    PluginDirectory: "",
-    API: {
-      Log: (ctx, level, message) => {
-        console.log(level, message)
-      }
-    } as PublicAPI
+  beforeEach(() => {
+    settingChangeHandler = null
+    for (const key of Object.keys(settingsStore)) {
+      delete settingsStore[key]
+    }
+
+    mockApi = {
+      Log: jest.fn().mockResolvedValue(undefined),
+      GetSetting: jest.fn().mockImplementation(async (_ctx: Context, key: string) => {
+        return settingsStore[key] || ""
+      }),
+      SaveSetting: jest.fn().mockResolvedValue(undefined),
+      OnSettingChanged: jest.fn().mockImplementation(async (_ctx: Context, handler: (ctx: Context, key: string, value: string) => void) => {
+        settingChangeHandler = handler
+      })
+    } as unknown as PublicAPI
   })
-  const response = await plugin.query(ctx, query)
-  const results = Array.isArray(response) ? response : response.Results
-  expect(results.length).toBeGreaterThan(0)
+
+  function createQuery(search = ""): Query {
+    return {
+      Id: "1",
+      Env: { ActiveWindowTitle: "", ActiveWindowPid: 0, ActiveBrowserUrl: "", ActiveWindowIcon: {} as WoxImage },
+      RawQuery: `kp ${search}`,
+      Selection: { Type: "text", Text: "", FilePaths: [] },
+      Type: "input",
+      Search: search,
+      TriggerKeyword: "kp",
+      Command: "",
+      IsGlobalQuery(): boolean {
+        return false
+      }
+    } as Query
+  }
+
+  test("displays setup guidance result item when kdbxFilePath is not configured", async () => {
+    const ctx = {} as Context
+    await plugin.init(ctx, {
+      PluginDirectory: "",
+      API: mockApi
+    })
+
+    const response = await plugin.query(ctx, createQuery())
+    const results = Array.isArray(response) ? response : response.Results
+
+    expect(results).toHaveLength(1)
+    const [result] = results
+    expect(result.Title).toBe("⚙️ 请先配置 KeePass 数据库路径")
+    expect(result.SubTitle).toBeDefined()
+    expect(result.Icon).toBeDefined()
+    expect(result.Preview).toBeDefined()
+    expect(result.Preview?.PreviewType).toBe("markdown")
+    expect(result.Preview?.PreviewData).toContain("kdbxFilePath")
+    expect(result.Preview?.PreviewData).toContain("KeePass")
+  })
+
+  test("displays setup guidance result item when kdbxFilePath is whitespace only", async () => {
+    const ctx = {} as Context
+    settingsStore["kdbxFilePath"] = "   "
+    await plugin.init(ctx, {
+      PluginDirectory: "",
+      API: mockApi
+    })
+
+    const response = await plugin.query(ctx, createQuery("searchterm"))
+    const results = Array.isArray(response) ? response : response.Results
+
+    expect(results).toHaveLength(1)
+    expect(results[0].Title).toBe("⚙️ 请先配置 KeePass 数据库路径")
+  })
+
+  test("registers OnSettingChanged and updates configuration", async () => {
+    const ctx = {} as Context
+    await plugin.init(ctx, {
+      PluginDirectory: "",
+      API: mockApi
+    })
+
+    expect(mockApi.OnSettingChanged).toHaveBeenCalled()
+    expect(settingChangeHandler).not.toBeNull()
+
+    // 初始状态下未配置，显示引导
+    let response = await plugin.query(ctx, createQuery())
+    let results = Array.isArray(response) ? response : response.Results
+    expect(results[0].Title).toBe("⚙️ 请先配置 KeePass 数据库路径")
+
+    // 模拟配置已更新
+    settingChangeHandler!(ctx, "kdbxFilePath", "D:\\keepass\\passwords.kdbx")
+
+    // 再次查询，不再显示未配置引导
+    response = await plugin.query(ctx, createQuery())
+    results = Array.isArray(response) ? response : response.Results
+    expect(results).toHaveLength(0)
+  })
 })

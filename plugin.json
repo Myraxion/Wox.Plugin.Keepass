@@ -5,10 +5,73 @@
   "Description": "Fast and secure credential search for KeePass.",
   "Author": "Myraxion",
   "Version": "0.0.6",
-  "MinWoxVersion": "2.0.0",
+  "MinWoxVersion": "2.0.4",
   "Runtime": "nodejs",
   "Website": "https://github.com/Myraxion/Wox.Plugin.Keepass",
   "Entry": "index.js",
   "Icon": "relative:icons/app.svg",
-  "SupportedOS": ["windows", "linux", "darwin"]
+  "SupportedOS": ["windows", "linux", "darwin"],
+  "SettingDefinitions": [
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "kdbxFilePath",
+        "Label": "KeePass 数据库路径 (.kdbx)",
+        "DefaultValue": "",
+        "Tooltip": "KeePass KDBX 数据库文件的绝对路径",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "not_empty",
+            "Value": {}
+          }
+        ]
+      },
+      "IsPlatformSpecific": true
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "keyFilePath",
+        "Label": "密钥文件路径 (.key / .keyx)",
+        "DefaultValue": "",
+        "Tooltip": "可选的 KeePass 密钥文件绝对路径",
+        "MaxLines": 1,
+        "Validators": []
+      },
+      "IsPlatformSpecific": true
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "autoLockTimeout",
+        "Label": "自动锁定超时 (秒)",
+        "DefaultValue": "900",
+        "Tooltip": "空闲自动锁定数据库的时间（秒），默认 900 秒（15 分钟）",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "is_number",
+            "Value": {
+              "IsInteger": true,
+              "IsFloat": false
+            }
+          }
+        ]
+      },
+      "IsPlatformSpecific": false
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "excludeRules",
+        "Label": "排除规则",
+        "DefaultValue": "",
+        "Tooltip": "逗号分隔的排除规则，使用 t: 标签或 g: 分组前缀，如 g:\"Recycle Bin\", t:Trash",
+        "MaxLines": 1,
+        "Validators": []
+      },
+      "IsPlatformSpecific": false
+    }
+  ]
 }
