@@ -107,6 +107,13 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
     await action.Action(ctx, { ResultId: "1", ResultActionId: "unlock", ContextData: {} })
 
     expect(mockApi.Notify).toHaveBeenCalledWith(ctx, "请输入主密码")
+    expect(mockApi.ShowToolbarMsg).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        Id: "keepass-unlock",
+        Title: "请输入主密码"
+      })
+    )
     expect(mockApi.ChangeQuery).not.toHaveBeenCalled()
   })
 
@@ -124,6 +131,13 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
     await action.Action(ctx, { ResultId: "1", ResultActionId: "unlock", ContextData: {} })
 
     expect(mockApi.Notify).toHaveBeenCalledWith(ctx, expect.stringContaining("解锁失败"))
+    expect(mockApi.ShowToolbarMsg).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        Id: "keepass-unlock",
+        Title: expect.stringContaining("解锁失败")
+      })
+    )
     expect(mockApi.ChangeQuery).not.toHaveBeenCalled()
 
     // 依然处于锁定状态

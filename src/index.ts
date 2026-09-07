@@ -34,6 +34,44 @@ function getUnconfiguredMarkdown(): string {
   ].join("\n")
 }
 
+let toolbarClearTimer: NodeJS.Timeout | null = null
+
+async function showTransientToolbarMsg(actionCtx: Context, msgId: string, title: string, durationMs: number = 2500): Promise<void> {
+  if (toolbarClearTimer) {
+    clearTimeout(toolbarClearTimer)
+    toolbarClearTimer = null
+  }
+
+  await api.Notify(actionCtx, title)
+
+  if (api.ShowToolbarMsg) {
+    await api.ShowToolbarMsg(actionCtx, {
+      Id: msgId,
+      Title: title,
+      Icon: {
+        ImageType: "relative",
+        ImageData: "icons/app.svg"
+      }
+    })
+  }
+
+  if (api.ClearToolbarMsg) {
+    toolbarClearTimer = setTimeout(async () => {
+      try {
+        if (api.ClearToolbarMsg) {
+          await api.ClearToolbarMsg(actionCtx, msgId)
+        }
+      } catch {
+        // ignore
+      }
+      toolbarClearTimer = null
+    }, durationMs)
+    if (toolbarClearTimer.unref) {
+      toolbarClearTimer.unref()
+    }
+  }
+}
+
 export const plugin: Plugin = {
   init: async (ctx: Context, initParams: PluginInitParams) => {
     api = initParams.API
@@ -102,12 +140,18 @@ export const plugin: Plugin = {
     }
 
     const performUnlock = async (actionCtx: Context) => {
+      const toolbarMsgId = "keepass-unlock"
+      if (toolbarClearTimer) {
+        clearTimeout(toolbarClearTimer)
+        toolbarClearTimer = null
+      }
+
       const password = query.Search.trim()
       if (!password) {
-        await api.Notify(actionCtx, "请输入主密码")
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "请输入主密码")
         return
       }
-      const toolbarMsgId = "keepass-unlock"
+
       if (api.ShowToolbarMsg) {
         await api.ShowToolbarMsg(actionCtx, {
           Id: toolbarMsgId,
@@ -121,17 +165,16 @@ export const plugin: Plugin = {
       }
       try {
         await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
+        if (api.ClearToolbarMsg) {
+          await api.ClearToolbarMsg(actionCtx, toolbarMsgId)
+        }
         await api.ChangeQuery(actionCtx, {
           QueryType: "input",
           QueryText: "kp "
         })
         await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
       } catch {
-        await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
-      } finally {
-        if (api.ClearToolbarMsg) {
-          await api.ClearToolbarMsg(actionCtx, toolbarMsgId)
-        }
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "解锁失败：主密码错误或密钥文件无效")
       }
     }
 
