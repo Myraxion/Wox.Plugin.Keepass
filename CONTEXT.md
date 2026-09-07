@@ -45,7 +45,7 @@ An executable keyboard command bound to an entry (e.g., Copy Password, Copy TOTP
 _Avoid_: Command, Operation, Task
 
 **Auto-lock Timeout**:
-The configurable idle duration of inactivity after which the in-memory decrypted database is purged.
+The configurable idle duration of inactivity (in seconds) after which the in-memory decrypted database is purged. Set to 0 to disable automatic locking.
 _Avoid_: Expiration, TTL, Sleep time
 
 **Exclusion Rule**:

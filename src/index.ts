@@ -48,7 +48,8 @@ export const plugin: Plugin = {
 
     config.kdbxFilePath = kdbxFilePath || ""
     config.keyFilePath = keyFilePath || ""
-    config.autoLockTimeout = parseInt(autoLockTimeout, 10) || 900
+    const parsedTimeout = parseInt(autoLockTimeout, 10)
+    config.autoLockTimeout = isNaN(parsedTimeout) ? 900 : Math.max(0, parsedTimeout)
     config.excludeRules = excludeRules || ""
 
     await api.OnSettingChanged(ctx, (_ctx: Context, key: string, value: string) => {
@@ -61,10 +62,12 @@ export const plugin: Plugin = {
           config.keyFilePath = value || ""
           session.lock()
           break
-        case "autoLockTimeout":
-          config.autoLockTimeout = parseInt(value, 10) || 900
+        case "autoLockTimeout": {
+          const parsed = parseInt(value, 10)
+          config.autoLockTimeout = isNaN(parsed) ? 900 : Math.max(0, parsed)
           session.setAutoLockTimeout(config.autoLockTimeout)
           break
+        }
         case "excludeRules":
           config.excludeRules = value || ""
           break
@@ -98,6 +101,40 @@ export const plugin: Plugin = {
       await session.checkMtime()
     }
 
+    const performUnlock = async (actionCtx: Context) => {
+      const password = query.Search.trim()
+      if (!password) {
+        await api.Notify(actionCtx, "请输入主密码")
+        return
+      }
+      const toolbarMsgId = "keepass-unlock"
+      if (api.ShowToolbarMsg) {
+        await api.ShowToolbarMsg(actionCtx, {
+          Id: toolbarMsgId,
+          Title: "正在解锁 KeePass 数据库...",
+          Icon: {
+            ImageType: "relative",
+            ImageData: "icons/app.svg"
+          },
+          Indeterminate: true
+        })
+      }
+      try {
+        await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
+        await api.ChangeQuery(actionCtx, {
+          QueryType: "input",
+          QueryText: "kp "
+        })
+        await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
+      } catch {
+        await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
+      } finally {
+        if (api.ClearToolbarMsg) {
+          await api.ClearToolbarMsg(actionCtx, toolbarMsgId)
+        }
+      }
+    }
+
     const searchTrimmed = query.Search.trim()
     if (searchTrimmed.toLowerCase() === "lock") {
       session.lock()
@@ -115,23 +152,7 @@ export const plugin: Plugin = {
                 Name: "解锁",
                 IsDefault: true,
                 PreventHideAfterAction: true,
-                Action: async (actionCtx: Context) => {
-                  const password = query.Search.trim()
-                  if (!password) {
-                    await api.Notify(actionCtx, "请输入主密码")
-                    return
-                  }
-                  try {
-                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
-                    await api.ChangeQuery(actionCtx, {
-                      QueryType: "input",
-                      QueryText: "kp "
-                    })
-                    await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
-                  } catch {
-                    await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
-                  }
-                }
+                Action: performUnlock
               }
             ]
           }
@@ -154,23 +175,7 @@ export const plugin: Plugin = {
                 Name: "解锁",
                 IsDefault: true,
                 PreventHideAfterAction: true,
-                Action: async (actionCtx: Context) => {
-                  const password = query.Search.trim()
-                  if (!password) {
-                    await api.Notify(actionCtx, "请输入主密码")
-                    return
-                  }
-                  try {
-                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
-                    await api.ChangeQuery(actionCtx, {
-                      QueryType: "input",
-                      QueryText: "kp "
-                    })
-                    await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
-                  } catch {
-                    await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
-                  }
-                }
+                Action: performUnlock
               }
             ]
           }

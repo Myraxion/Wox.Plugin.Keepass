@@ -44,7 +44,9 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       OnSettingChanged: jest.fn().mockResolvedValue(undefined),
       ChangeQuery: jest.fn().mockResolvedValue(undefined),
       Notify: jest.fn().mockResolvedValue(undefined),
-      Copy: jest.fn().mockResolvedValue(undefined)
+      Copy: jest.fn().mockResolvedValue(undefined),
+      ShowToolbarMsg: jest.fn().mockResolvedValue(undefined),
+      ClearToolbarMsg: jest.fn().mockResolvedValue(undefined)
     } as unknown as PublicAPI
   })
 

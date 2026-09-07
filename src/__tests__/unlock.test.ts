@@ -29,7 +29,9 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
         settingChangeHandler = handler
       }),
       ChangeQuery: jest.fn().mockResolvedValue(undefined),
-      Notify: jest.fn().mockResolvedValue(undefined)
+      Notify: jest.fn().mockResolvedValue(undefined),
+      ShowToolbarMsg: jest.fn().mockResolvedValue(undefined),
+      ClearToolbarMsg: jest.fn().mockResolvedValue(undefined)
     } as unknown as PublicAPI
   })
 
@@ -169,6 +171,17 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
     const action = results[0].Actions?.[0] as ExecuteResultAction
 
     await action.Action(ctx, { ResultId: "1", ResultActionId: "unlock", ContextData: {} })
+
+    expect(mockApi.ShowToolbarMsg).toHaveBeenCalledWith(ctx, {
+      Id: "keepass-unlock",
+      Title: "正在解锁 KeePass 数据库...",
+      Icon: {
+        ImageType: "relative",
+        ImageData: "icons/app.svg"
+      },
+      Indeterminate: true
+    })
+    expect(mockApi.ClearToolbarMsg).toHaveBeenCalledWith(ctx, "keepass-unlock")
 
     expect(mockApi.ChangeQuery).toHaveBeenCalledWith(ctx, {
       QueryType: "input",

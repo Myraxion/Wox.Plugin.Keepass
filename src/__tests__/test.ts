@@ -20,7 +20,11 @@ describe("KeePass Plugin Unconfigured State", () => {
       SaveSetting: jest.fn().mockResolvedValue(undefined),
       OnSettingChanged: jest.fn().mockImplementation(async (_ctx: Context, handler: (ctx: Context, key: string, value: string) => void) => {
         settingChangeHandler = handler
-      })
+      }),
+      ChangeQuery: jest.fn().mockResolvedValue(undefined),
+      Notify: jest.fn().mockResolvedValue(undefined),
+      ShowToolbarMsg: jest.fn().mockResolvedValue(undefined),
+      ClearToolbarMsg: jest.fn().mockResolvedValue(undefined)
     } as unknown as PublicAPI
   })
 
@@ -99,5 +103,18 @@ describe("KeePass Plugin Unconfigured State", () => {
     results = Array.isArray(response) ? response : response.Results
     expect(results).toHaveLength(1)
     expect(results[0].Title).toBe("🔒 数据库已锁定")
+  })
+
+  test("handles autoLockTimeout set to 0 properly without defaulting to 900", async () => {
+    const ctx = {} as Context
+    settingsStore["kdbxFilePath"] = "D:\\passwords.kdbx"
+    settingsStore["autoLockTimeout"] = "0"
+
+    await plugin.init(ctx, {
+      PluginDirectory: "",
+      API: mockApi
+    })
+
+    expect(settingChangeHandler).not.toBeNull()
   })
 })

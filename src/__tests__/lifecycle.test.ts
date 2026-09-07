@@ -40,7 +40,9 @@ describe("State Lifecycle & Invalidation", () => {
         settingChangeHandler = handler
       }),
       ChangeQuery: jest.fn().mockResolvedValue(undefined),
-      Notify: jest.fn().mockResolvedValue(undefined)
+      Notify: jest.fn().mockResolvedValue(undefined),
+      ShowToolbarMsg: jest.fn().mockResolvedValue(undefined),
+      ClearToolbarMsg: jest.fn().mockResolvedValue(undefined)
     } as unknown as PublicAPI
   })
 
@@ -211,5 +213,24 @@ describe("State Lifecycle & Invalidation", () => {
     const afterResponse = await plugin.query(ctx, createQuery("游戏账号"))
     const afterResults = Array.isArray(afterResponse) ? afterResponse : afterResponse.Results
     expect(afterResults.length).toBe(0)
+  })
+
+  test("OnSettingChanged: setting autoLockTimeout to 0 disables idle timeout locking", async () => {
+    const ctx = {} as Context
+    await unlockPlugin(ctx)
+    expect(session.isUnlocked()).toBe(true)
+
+    // Set autoLockTimeout to 0 (disabled)
+    settingChangeHandler!(ctx, "autoLockTimeout", "0")
+
+    // Fast-forward time past 900s
+    jest.useFakeTimers()
+    try {
+      jest.advanceTimersByTime(1000 * 1000)
+      // Since timeout is 0 (disabled), session remains unlocked
+      expect(session.isUnlocked()).toBe(true)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })

@@ -47,7 +47,7 @@
         "Key": "autoLockTimeout",
         "Label": "自动锁定超时 (秒)",
         "DefaultValue": "900",
-        "Tooltip": "空闲自动锁定数据库的时间（秒），默认 900 秒（15 分钟）",
+        "Tooltip": "空闲自动锁定数据库的时间（秒），默认 900 秒（15 分钟），0 为不自动锁定",
         "MaxLines": 1,
         "Validators": [
           {
