@@ -45,6 +45,11 @@ export function buildEntryPreview(entry: FlattenedEntry, timestamp?: number): Wo
     lines.push(`- **网址**: [${rawUrl}](${clickableHref})`)
   }
 
+  // Tags (if available)
+  if (entry.tags && entry.tags.length > 0) {
+    lines.push(`- **标签**: ${entry.tags.join(", ")}`)
+  }
+
   // Notes
   if (entry.notes && entry.notes.trim().length > 0) {
     lines.push("")

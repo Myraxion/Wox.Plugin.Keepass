@@ -5,7 +5,7 @@ A fast, secure, read-only KeePass (KDBX4) launcher plugin for Wox with in-memory
 ## Language
 
 **Database**:
-A single KDBX4 file storing the encrypted password safe on local disk.
+A single KDBX4 database file storing the encrypted password safe on local disk.
 _Avoid_: Vault, Safe, Store, Container
 
 **Master Password**:
@@ -13,7 +13,7 @@ The user's secret passphrase used in memory to derive encryption keys and unlock
 _Avoid_: Passphrase, Master key, Password, Secret
 
 **Key File**:
-An optional secondary credential file (.key or .keyx) required alongside the master password to unlock the database.
+An optional secondary credential file required alongside the master password to unlock the database.
 _Avoid_: Secret file, Auth file, Key
 
 **Entry**:
@@ -37,7 +37,7 @@ The runtime state where the database is not decrypted or in-memory credentials h
 _Avoid_: Closed state, Sealed state
 
 **Preview Card**:
-The right-hand markdown pane displaying formatted entry credentials, notes, dynamic TOTP, and metadata tags.
+The right-hand markdown pane displaying formatted entry credentials, entry tags, notes, dynamic TOTP, and metadata badges.
 _Avoid_: Details view, Inspector, Sidebar
 
 **Action**:

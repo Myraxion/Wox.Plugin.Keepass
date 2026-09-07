@@ -23,12 +23,12 @@ function getUnconfiguredMarkdown(): string {
   return [
     "# ⚙️ KeePass 数据库未配置",
     "",
-    "当前尚未配置 KeePass 数据库文件路径（`.kdbx`）。",
+    "当前尚未配置 KeePass 数据库文件路径。",
     "",
     "### 配置步骤：",
     "1. 打开 Wox 设置 -> 插件 -> KeePass",
-    "2. 在 **KeePass 数据库路径** (`kdbxFilePath`) 中填入 `.kdbx` 文件的绝对路径",
-    "3. （可选）若使用了密钥文件，在 **密钥文件路径** (`keyFilePath`) 中填入 `.key` 或 `.keyx` 文件的绝对路径",
+    "2. 在 **KeePass 数据库路径** (`kdbxFilePath`) 中填入数据库文件的绝对路径",
+    "3. （可选）若使用了密钥文件，在 **密钥文件路径** (`keyFilePath`) 中填入密钥文件的绝对路径",
     "4. （可选）调整 **自动锁定超时** (`autoLockTimeout`) 与 **排除规则** (`excludeRules`)",
     "5. 保存设置后，在搜索框中重新输入 `kp` 即可开始使用"
   ].join("\n")
@@ -80,7 +80,7 @@ export const plugin: Plugin = {
         Results: [
           {
             Title: "⚙️ 请先配置 KeePass 数据库路径",
-            SubTitle: "请在插件设置中指定 .kdbx 数据库文件的绝对路径",
+            SubTitle: "请在插件设置中指定数据库文件的绝对路径",
             Icon: {
               ImageType: "relative",
               ImageData: "icons/app.svg"

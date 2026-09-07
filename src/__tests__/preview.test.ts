@@ -102,4 +102,22 @@ describe("Preview Card Generator", () => {
       expect(preview.PreviewData).toContain(notesEntry!.notes)
     })
   })
+
+  describe("Entry with tags", () => {
+    test("renders tags line in markdown when entry has tags", () => {
+      const taggedEntry = allEntries.find(e => e.tags && e.tags.length > 0)
+      expect(taggedEntry).toBeDefined()
+
+      const preview = buildEntryPreview(taggedEntry!)
+      expect(preview.PreviewData).toContain(`- **标签**: ${taggedEntry!.tags.join(", ")}`)
+    })
+
+    test("does not render tags line when entry has no tags", () => {
+      const untaggedEntry = allEntries.find(e => !e.tags || e.tags.length === 0)
+      expect(untaggedEntry).toBeDefined()
+
+      const preview = buildEntryPreview(untaggedEntry!)
+      expect(preview.PreviewData).not.toContain("- **标签**")
+    })
+  })
 })

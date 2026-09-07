@@ -16,9 +16,9 @@
       "Type": "textbox",
       "Value": {
         "Key": "kdbxFilePath",
-        "Label": "KeePass 数据库路径 (.kdbx)",
+        "Label": "KeePass 数据库路径",
         "DefaultValue": "",
-        "Tooltip": "KeePass KDBX 数据库文件的绝对路径",
+        "Tooltip": "KeePass 数据库文件的绝对路径",
         "MaxLines": 1,
         "Validators": [
           {
@@ -33,7 +33,7 @@
       "Type": "textbox",
       "Value": {
         "Key": "keyFilePath",
-        "Label": "密钥文件路径 (.key / .keyx)",
+        "Label": "密钥文件路径",
         "DefaultValue": "",
         "Tooltip": "可选的 KeePass 密钥文件绝对路径",
         "MaxLines": 1,
