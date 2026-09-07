@@ -1,6 +1,7 @@
 import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn } from "@wox-launcher/wox-plugin"
 import { setupArgon2 } from "./crypto"
 import * as session from "./session"
+import { searchEntries } from "./search"
 
 interface PluginConfig {
   kdbxFilePath: string
@@ -131,8 +132,15 @@ export const plugin: Plugin = {
       }
     }
 
+    const db = session.getDatabase()
+    if (!db || !query.Search || query.Search.trim() === "") {
+      return {
+        Results: []
+      }
+    }
+
     return {
-      Results: []
+      Results: searchEntries(db, query.Search)
     }
   }
 }

@@ -2,6 +2,7 @@
   "compilerOptions": {
     /* Added */
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     /* Disallow inconsistently-cased references to the same file. */
     "preserveConstEnums": true,
     /* Do not erase const enum declarations in generated code. */
