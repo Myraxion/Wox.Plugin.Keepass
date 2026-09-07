@@ -195,7 +195,14 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
       },
       Indeterminate: true
     })
-    expect(mockApi.ClearToolbarMsg).toHaveBeenCalledWith(ctx, "keepass-unlock")
+    expect(mockApi.ShowToolbarMsg).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        Id: "keepass-unlock",
+        Title: "数据库解锁成功"
+      })
+    )
+    expect(mockApi.Notify).toHaveBeenCalledWith(ctx, "数据库解锁成功")
 
     expect(mockApi.ChangeQuery).toHaveBeenCalledWith(ctx, {
       QueryType: "input",

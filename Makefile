@@ -63,7 +63,7 @@ format: check-init check-dev-deps
 
 build: check-init check-dev-deps lint format
 ifeq ($(OS),Windows_NT)
-	$(POWERSHELL) "if (Test-Path '$(DIST_DIR)') { Remove-Item -Recurse -Force '$(DIST_DIR)' }"
+	$(POWERSHELL) "if (Test-Path '$(DIST_DIR)') { Remove-Item -Recurse -Force '$(DIST_DIR)\*' }"
 else
 	rm -rf $(DIST_DIR)
 endif

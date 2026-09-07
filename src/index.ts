@@ -165,9 +165,7 @@ export const plugin: Plugin = {
       }
       try {
         await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
-        if (api.ClearToolbarMsg) {
-          await api.ClearToolbarMsg(actionCtx, toolbarMsgId)
-        }
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "数据库解锁成功")
         await api.ChangeQuery(actionCtx, {
           QueryType: "input",
           QueryText: "kp "
