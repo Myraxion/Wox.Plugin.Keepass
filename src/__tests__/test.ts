@@ -94,9 +94,10 @@ describe("KeePass Plugin Unconfigured State", () => {
     // 模拟配置已更新
     settingChangeHandler!(ctx, "kdbxFilePath", "D:\\keepass\\passwords.kdbx")
 
-    // 再次查询，不再显示未配置引导
+    // 再次查询，显示锁定状态而非未配置引导
     response = await plugin.query(ctx, createQuery())
     results = Array.isArray(response) ? response : response.Results
-    expect(results).toHaveLength(0)
+    expect(results).toHaveLength(1)
+    expect(results[0].Title).toBe("🔒 数据库已锁定")
   })
 })

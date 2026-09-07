@@ -1,4 +1,6 @@
 import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn } from "@wox-launcher/wox-plugin"
+import { setupArgon2 } from "./crypto"
+import * as session from "./session"
 
 interface PluginConfig {
   kdbxFilePath: string
@@ -34,6 +36,7 @@ function getUnconfiguredMarkdown(): string {
 export const plugin: Plugin = {
   init: async (ctx: Context, initParams: PluginInitParams) => {
     api = initParams.API
+    setupArgon2()
 
     const [kdbxFilePath, keyFilePath, autoLockTimeout, excludeRules] = await Promise.all([
       api.GetSetting(ctx, "kdbxFilePath"),
@@ -51,9 +54,11 @@ export const plugin: Plugin = {
       switch (key) {
         case "kdbxFilePath":
           config.kdbxFilePath = value || ""
+          session.lock()
           break
         case "keyFilePath":
           config.keyFilePath = value || ""
+          session.lock()
           break
         case "autoLockTimeout":
           config.autoLockTimeout = parseInt(value, 10) || 900
@@ -67,7 +72,7 @@ export const plugin: Plugin = {
     await api.Log(ctx, "Info", "KeePass plugin initialized")
   },
 
-  query: async (_ctx: Context, _query: Query): Promise<QueryReturn> => {
+  query: async (_ctx: Context, query: Query): Promise<QueryReturn> => {
     if (!config.kdbxFilePath || config.kdbxFilePath.trim() === "") {
       return {
         Results: [
@@ -82,6 +87,45 @@ export const plugin: Plugin = {
               PreviewType: "markdown",
               PreviewData: getUnconfiguredMarkdown()
             }
+          }
+        ]
+      }
+    }
+
+    if (!session.isUnlocked()) {
+      return {
+        Results: [
+          {
+            Title: "🔒 数据库已锁定",
+            SubTitle: "输入主密码后按 Enter 解锁",
+            Icon: {
+              ImageType: "relative",
+              ImageData: "icons/app.svg"
+            },
+            Actions: [
+              {
+                Name: "解锁",
+                IsDefault: true,
+                PreventHideAfterAction: true,
+                Action: async (actionCtx: Context) => {
+                  const password = query.Search.trim()
+                  if (!password) {
+                    await api.Notify(actionCtx, "请输入主密码")
+                    return
+                  }
+                  try {
+                    await session.unlock(config.kdbxFilePath, config.keyFilePath, password)
+                    await api.ChangeQuery(actionCtx, {
+                      QueryType: "input",
+                      QueryText: "kp "
+                    })
+                    await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
+                  } catch {
+                    await api.Notify(actionCtx, "解锁失败：主密码错误或密钥文件无效")
+                  }
+                }
+              }
+            ]
           }
         ]
       }
