@@ -2,6 +2,7 @@ import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn, Resul
 import { setupArgon2 } from "./crypto"
 import * as session from "./session"
 import { searchEntries } from "./search"
+import { extractUrlHostname } from "./url"
 
 interface PluginConfig {
   kdbxFilePath: string
@@ -137,6 +138,40 @@ export const plugin: Plugin = {
 
     if (session.isUnlocked()) {
       await session.checkMtime()
+    }
+
+    if (query.Type === "selection") {
+      const selectedText = query.Selection?.Type === "text" ? query.Selection.Text : ""
+      const hostname = extractUrlHostname(selectedText)
+      if (!hostname) {
+        return { Results: [] }
+      }
+
+      if (!session.isUnlocked()) {
+        return {
+          Results: [
+            {
+              Title: "🔒 数据库已锁定",
+              SubTitle: "请先在 Wox 主搜索框中解锁 KeePass 数据库",
+              Icon: {
+                ImageType: "relative",
+                ImageData: "icons/app.svg"
+              }
+            }
+          ]
+        }
+      }
+
+      session.touchActivity()
+      const db = session.getDatabase()
+      if (!db) {
+        return { Results: [] }
+      }
+
+      const searchPattern = `url:"${hostname}"`
+      return {
+        Results: searchEntries(db, searchPattern, api, { excludeRules: config.excludeRules })
+      }
     }
 
     const triggerPrefix = query.TriggerKeyword ? `${query.TriggerKeyword} ` : "kp "

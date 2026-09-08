@@ -55,3 +55,7 @@ _Avoid_: Blacklist, Ignore filter, Omission
 **Tokenizer**:
 A lightweight parser splitting queries and rules into terms, quoted phrases (half-width `""` or full-width `“”`), and prefixed attributes while respecting whitespace and quotes.
 _Avoid_: Lexer, Query parser, Splitter
+
+**Selection Query**:
+A contextual search query triggered by highlighting text in external applications. KeePass only activates when the selection is a valid URL (including protocol-less domains and localhost:port), matching against entry URLs via hostnames.
+_Avoid_: Highlight search, Clipboard query, Quick search

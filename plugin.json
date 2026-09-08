@@ -11,6 +11,11 @@
   "Entry": "index.js",
   "Icon": "relative:icons/app.svg",
   "SupportedOS": ["windows", "linux", "darwin"],
+  "Features": [
+    {
+      "Name": "querySelection"
+    }
+  ],
   "SettingDefinitions": [
     {
       "Type": "textbox",

@@ -1,0 +1,3 @@
+# Selection Query URL Detection and Hostname Matching
+
+We enable Wox Selection Query (`querySelection` feature) for rapid credential lookup upon text selection, but conditionally activate only when the highlighted text is identified as a URL (including protocol-less domains and `localhost:port`). Non-URL selections are silently ignored to avoid polluting general text selections, while valid URLs are normalized to their core hostname/domain for `url:` searches to bridge full browser paths with domain-level KeePass database records; when the database is locked, a dedicated locked status notice is presented exclusively for URL selections.
