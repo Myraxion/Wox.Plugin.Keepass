@@ -1,0 +1,3 @@
+# CJK Punctuation Normalization and Explicit Enter Lock Action
+
+We extend the tokenizer and exclusion rule parser to normalize full-width CJK punctuation (colon `：` and quotation marks `“”`), treating them identically to their ASCII equivalents (`:` and `""`) to prevent input method switching friction. Manual database locking is decoupled from keystroke-level query matching: typing `lock` yields a dedicated "Lock Database" action item triggered explicitly via the Enter key alongside regular entry matches, preventing accidental cache destruction during normal credential searches while dynamically preserving the user's active trigger keyword upon state reset.

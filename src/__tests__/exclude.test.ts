@@ -57,6 +57,15 @@ describe("Exclusion Rules Parsing and Filtering", () => {
         { type: "t", value: "Trash" }
       ])
     })
+
+    test("supports CJK full-width colons and quotation marks", () => {
+      const input = "g：“回收 站”, t：废纸篓, g：“子目录，测试”"
+      expect(parseExcludeRules(input)).toEqual<ExcludeRule[]>([
+        { type: "g", value: "回收 站" },
+        { type: "t", value: "废纸篓" },
+        { type: "g", value: "子目录，测试" }
+      ])
+    })
   })
 
   describe("isEntryExcluded", () => {

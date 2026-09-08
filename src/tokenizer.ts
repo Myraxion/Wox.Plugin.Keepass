@@ -5,9 +5,13 @@ export interface SearchToken {
   value: string
 }
 
+function isQuote(ch: string | undefined): boolean {
+  return ch === '"' || ch === "“" || ch === "”"
+}
+
 /**
  * Lightweight, zero-dependency tokenizer that extracts plain terms,
- * prefixed terms (u:, t:, url:, g:), and double-quoted values.
+ * prefixed terms (u:, t:, url:, g: / u：, t：, url：, g：), and quoted values.
  */
 export function tokenizeQuery(query: string): SearchToken[] {
   const tokens: SearchToken[] = []
@@ -21,26 +25,29 @@ export function tokenizeQuery(query: string): SearchToken[] {
     }
     if (i >= len) break
 
-    // Check for known field prefixes (case-insensitive)
+    // Check for known field prefixes (case-insensitive, supports full-width colon)
     let field: FieldPrefix | undefined = undefined
 
-    if (query.slice(i, i + 4).toLowerCase() === "url:") {
+    if (query.slice(i, i + 3).toLowerCase() === "url" && (query[i + 3] === ":" || query[i + 3] === "：")) {
       field = "url"
       i += 4
-    } else if (query.slice(i, i + 2).toLowerCase() === "u:" || query.slice(i, i + 2).toLowerCase() === "t:" || query.slice(i, i + 2).toLowerCase() === "g:") {
-      field = query[i].toLowerCase() as FieldPrefix
-      i += 2
+    } else {
+      const prefixChar = query[i]?.toLowerCase()
+      if ((prefixChar === "u" || prefixChar === "t" || prefixChar === "g") && (query[i + 1] === ":" || query[i + 1] === "：")) {
+        field = prefixChar as FieldPrefix
+        i += 2
+      }
     }
 
     let value = ""
-    if (i < len && query[i] === '"') {
+    if (i < len && isQuote(query[i])) {
       i++ // Skip opening quote
       const start = i
-      while (i < len && query[i] !== '"') {
+      while (i < len && !isQuote(query[i])) {
         i++
       }
       value = query.slice(start, i)
-      if (i < len && query[i] === '"') {
+      if (i < len && isQuote(query[i])) {
         i++ // Skip closing quote
       }
     } else {
@@ -65,8 +72,8 @@ export interface ExcludeRule {
 }
 
 /**
- * Parses comma-separated exclusion rules with strict prefixes (t:, g:)
- * and support for double-quoted values.
+ * Parses comma-separated exclusion rules with strict prefixes (t:, g: / t：, g：)
+ * and support for double-quoted values (half-width or full-width).
  */
 export function parseExcludeRules(settingValue: string): ExcludeRule[] {
   if (!settingValue || !settingValue.trim()) {
@@ -79,7 +86,7 @@ export function parseExcludeRules(settingValue: string): ExcludeRule[] {
 
   for (let i = 0; i < settingValue.length; i++) {
     const ch = settingValue[i]
-    if (ch === '"') {
+    if (isQuote(ch)) {
       inQuotes = !inQuotes
       current += ch
     } else if (ch === "," && !inQuotes) {
@@ -102,10 +109,10 @@ export function parseExcludeRules(settingValue: string): ExcludeRule[] {
     let type: "t" | "g" | null = null
     let content = ""
 
-    if (lower.startsWith("t:")) {
+    if (lower.startsWith("t:") || lower.startsWith("t：")) {
       type = "t"
       content = raw.slice(2).trim()
-    } else if (lower.startsWith("g:")) {
+    } else if (lower.startsWith("g:") || lower.startsWith("g：")) {
       type = "g"
       content = raw.slice(2).trim()
     }
@@ -115,10 +122,10 @@ export function parseExcludeRules(settingValue: string): ExcludeRule[] {
     }
 
     let value = content
-    if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+    if (value.length >= 2 && isQuote(value[0]) && isQuote(value[value.length - 1])) {
       value = value.slice(1, -1).trim()
     } else {
-      value = value.replace(/^"|"$/g, "").trim()
+      value = value.replace(/^["“”]|["“”]$/g, "").trim()
     }
 
     if (value.length > 0) {

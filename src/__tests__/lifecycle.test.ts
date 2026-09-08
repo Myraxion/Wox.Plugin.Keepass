@@ -57,15 +57,15 @@ describe("State Lifecycle & Invalidation", () => {
     }
   })
 
-  function createQuery(search = ""): Query {
+  function createQuery(search = "", triggerKeyword: string | undefined = "kp"): Query {
     return {
       Id: "1",
       Env: { ActiveWindowTitle: "", ActiveWindowPid: 0, ActiveBrowserUrl: "", ActiveWindowIcon: {} as WoxImage },
-      RawQuery: search ? `kp ${search}` : "kp",
+      RawQuery: search ? `${triggerKeyword || "kp"} ${search}` : triggerKeyword || "kp",
       Selection: { Type: "text", Text: "", FilePaths: [] },
       Type: "input",
       Search: search,
-      TriggerKeyword: "kp",
+      TriggerKeyword: triggerKeyword,
       Command: "",
       IsGlobalQuery(): boolean {
         return false
@@ -82,18 +82,36 @@ describe("State Lifecycle & Invalidation", () => {
     expect(session.isUnlocked()).toBe(true)
   }
 
-  test("manual locking via 'kp lock' immediately locks vault and shows locked result", async () => {
+  test("querying 'lock' yields lock action item and only locks vault upon explicit Enter action", async () => {
     const ctx = {} as Context
     await unlockPlugin(ctx)
 
-    // Run command 'kp lock'
-    const lockResponse = await plugin.query(ctx, createQuery("lock"))
+    // Run command 'keepass lock' with TriggerKeyword 'keepass'
+    const lockResponse = await plugin.query(ctx, createQuery("lock", "keepass"))
     const lockResults = Array.isArray(lockResponse) ? lockResponse : lockResponse.Results
 
-    expect(session.isUnlocked()).toBe(false)
-    expect(lockResults[0].Title).toBe("🔒 数据库已锁定")
+    // Should NOT automatically lock immediately
+    expect(session.isUnlocked()).toBe(true)
+    expect(lockResults[0].Title).toBe("🔒 锁定数据库")
+    expect(lockResults[0].SubTitle).toBe("按 Enter 立即锁定 KeePass 数据库")
+    expect(lockResults[0].Actions).toBeDefined()
+    expect(lockResults[0].Actions!.length).toBeGreaterThan(0)
 
-    // Subsequent search is also locked
+    const lockAction = lockResults[0].Actions![0] as ExecuteResultAction
+    expect(lockAction.Name).toBe("锁定")
+
+    // Explicit Enter triggers the lock action
+    await lockAction.Action(ctx, { ResultId: "lock-action", ResultActionId: "lock", ContextData: {} })
+
+    // Now it should be locked
+    expect(session.isUnlocked()).toBe(false)
+    expect(mockApi.ChangeQuery).toHaveBeenCalledWith(ctx, {
+      QueryType: "input",
+      QueryText: "keepass "
+    })
+    expect(mockApi.Notify).toHaveBeenCalledWith(ctx, "数据库已锁定")
+
+    // Subsequent search is locked
     const nextResponse = await plugin.query(ctx, createQuery("游戏"))
     const nextResults = Array.isArray(nextResponse) ? nextResponse : nextResponse.Results
     expect(nextResults[0].Title).toBe("🔒 数据库已锁定")

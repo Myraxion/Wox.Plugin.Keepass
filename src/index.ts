@@ -1,4 +1,4 @@
-import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn } from "@wox-launcher/wox-plugin"
+import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn, Result } from "@wox-launcher/wox-plugin"
 import { setupArgon2 } from "./crypto"
 import * as session from "./session"
 import { searchEntries } from "./search"
@@ -139,6 +139,8 @@ export const plugin: Plugin = {
       await session.checkMtime()
     }
 
+    const triggerPrefix = query.TriggerKeyword ? `${query.TriggerKeyword} ` : "kp "
+
     const performUnlock = async (actionCtx: Context) => {
       const toolbarMsgId = "keepass-unlock"
       if (toolbarClearTimer) {
@@ -168,36 +170,11 @@ export const plugin: Plugin = {
         await showTransientToolbarMsg(actionCtx, toolbarMsgId, "数据库解锁成功")
         await api.ChangeQuery(actionCtx, {
           QueryType: "input",
-          QueryText: "kp "
+          QueryText: triggerPrefix
         })
         await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
       } catch {
         await showTransientToolbarMsg(actionCtx, toolbarMsgId, "解锁失败：主密码错误或密钥文件无效")
-      }
-    }
-
-    const searchTrimmed = query.Search.trim()
-    if (searchTrimmed.toLowerCase() === "lock") {
-      session.lock()
-      return {
-        Results: [
-          {
-            Title: "🔒 数据库已锁定",
-            SubTitle: "输入主密码后按 Enter 解锁",
-            Icon: {
-              ImageType: "relative",
-              ImageData: "icons/app.svg"
-            },
-            Actions: [
-              {
-                Name: "解锁",
-                IsDefault: true,
-                PreventHideAfterAction: true,
-                Action: performUnlock
-              }
-            ]
-          }
-        ]
       }
     }
 
@@ -233,8 +210,41 @@ export const plugin: Plugin = {
       }
     }
 
+    const searchTrimmed = query.Search.trim()
+    const searchResults = searchEntries(db, query.Search, api, { excludeRules: config.excludeRules })
+
+    if (searchTrimmed.toLowerCase() === "lock") {
+      const lockActionItem: Result = {
+        Title: "🔒 锁定数据库",
+        SubTitle: "按 Enter 立即锁定 KeePass 数据库",
+        Icon: {
+          ImageType: "relative",
+          ImageData: "icons/app.svg"
+        },
+        Score: 1000,
+        Actions: [
+          {
+            Name: "锁定",
+            IsDefault: true,
+            PreventHideAfterAction: true,
+            Action: async (actionCtx: Context) => {
+              session.lock()
+              await showTransientToolbarMsg(actionCtx, "keepass-lock", "数据库已锁定")
+              await api.ChangeQuery(actionCtx, {
+                QueryType: "input",
+                QueryText: triggerPrefix
+              })
+            }
+          }
+        ]
+      }
+      return {
+        Results: [lockActionItem, ...searchResults]
+      }
+    }
+
     return {
-      Results: searchEntries(db, query.Search, api, { excludeRules: config.excludeRules })
+      Results: searchResults
     }
   }
 }

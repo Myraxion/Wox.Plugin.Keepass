@@ -35,15 +35,15 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
     } as unknown as PublicAPI
   })
 
-  function createQuery(search = ""): Query {
+  function createQuery(search = "", triggerKeyword: string | undefined = "kp"): Query {
     return {
       Id: "1",
       Env: { ActiveWindowTitle: "", ActiveWindowPid: 0, ActiveBrowserUrl: "", ActiveWindowIcon: {} as WoxImage },
-      RawQuery: search ? `kp ${search}` : "kp",
+      RawQuery: search ? `${triggerKeyword || "kp"} ${search}` : triggerKeyword || "kp",
       Selection: { Type: "text", Text: "", FilePaths: [] },
       Type: "input",
       Search: search,
-      TriggerKeyword: "kp",
+      TriggerKeyword: triggerKeyword,
       Command: "",
       IsGlobalQuery(): boolean {
         return false
@@ -227,5 +227,40 @@ describe("KeePass Plugin Locked State & Unlock Flow", () => {
     const relockedResponse = await plugin.query(ctx, createQuery())
     const relockedResults = Array.isArray(relockedResponse) ? relockedResponse : relockedResponse.Results
     expect(relockedResults[0].Title).toBe("🔒 数据库已锁定")
+  })
+
+  test("successful unlock dynamically uses query.TriggerKeyword for ChangeQuery", async () => {
+    const ctx = {} as Context
+    await plugin.init(ctx, {
+      PluginDirectory: "",
+      API: mockApi
+    })
+
+    // Case 1: TriggerKeyword is 'keepass'
+    const responseKeepass = await plugin.query(ctx, createQuery("9VA%9hfe2MzzaHQp", "keepass"))
+    const resultsKeepass = Array.isArray(responseKeepass) ? responseKeepass : responseKeepass.Results
+    const actionKeepass = resultsKeepass[0].Actions?.[0] as ExecuteResultAction
+
+    await actionKeepass.Action(ctx, { ResultId: "1", ResultActionId: "unlock", ContextData: {} })
+
+    expect(mockApi.ChangeQuery).toHaveBeenCalledWith(ctx, {
+      QueryType: "input",
+      QueryText: "keepass "
+    })
+
+    // Re-lock to test another keyword
+    settingChangeHandler!(ctx, "kdbxFilePath", sampleKdbxPath)
+
+    // Case 2: Custom trigger keyword 'pwd'
+    const responsePwd = await plugin.query(ctx, createQuery("9VA%9hfe2MzzaHQp", "pwd"))
+    const resultsPwd = Array.isArray(responsePwd) ? responsePwd : responsePwd.Results
+    const actionPwd = resultsPwd[0].Actions?.[0] as ExecuteResultAction
+
+    await actionPwd.Action(ctx, { ResultId: "1", ResultActionId: "unlock", ContextData: {} })
+
+    expect(mockApi.ChangeQuery).toHaveBeenCalledWith(ctx, {
+      QueryType: "input",
+      QueryText: "pwd "
+    })
   })
 })

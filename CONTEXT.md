@@ -29,11 +29,11 @@ A time-based one-time password generated from an RFC 6238 URI stored strictly in
 _Avoid_: OTP, 2FA token, Dynamic token
 
 **Field Prefix**:
-A query syntax prefix (e.g., `u:`, `t:`, `url:`, `g:`) used in searches, supporting double-quoted phrases for spaces (e.g., `u:"John Doe"`).
+A query syntax prefix (e.g., `u:`, `t:`, `url:`, `g:` or full-width `u：`, `t：`, `url：`, `g：`) used in searches, supporting double-quoted phrases for spaces (e.g., `u:"John Doe"` or `u：“John Doe”`).
 _Avoid_: Search filter, Search tag, Modifier
 
 **Lock State**:
-The runtime state where the database is not decrypted or in-memory credentials have been purged due to timeout or reload.
+The runtime state where the database is not decrypted or in-memory credentials have been purged due to timeout, reload, or explicit lock action via the Enter key.
 _Avoid_: Closed state, Sealed state
 
 **Preview Card**:
@@ -41,7 +41,7 @@ The right-hand markdown pane displaying formatted entry credentials, entry tags,
 _Avoid_: Details view, Inspector, Sidebar
 
 **Action**:
-An executable keyboard command bound to an entry (e.g., Copy Password, Copy TOTP, Open URL).
+An executable keyboard command bound to an entry (e.g., Copy Password, Copy TOTP, Open URL, Lock Database).
 _Avoid_: Command, Operation, Task
 
 **Auto-lock Timeout**:
@@ -49,9 +49,9 @@ The configurable idle duration of inactivity (in seconds) after which the in-mem
 _Avoid_: Expiration, TTL, Sleep time
 
 **Exclusion Rule**:
-A comma-separated setting pattern with strict prefixes (`t:` for tags, `g:` for group paths) and double-quoted values (e.g., `g:"Recycle Bin"`) to hide entries.
+A comma-separated setting pattern with strict prefixes (`t:`, `g:` or full-width `t：`, `g：`) and double-quoted values (e.g., `g:"Recycle Bin"` or `g：“Recycle Bin”`) to hide entries.
 _Avoid_: Blacklist, Ignore filter, Omission
 
 **Tokenizer**:
-A lightweight parser splitting queries and rules into terms, quoted phrases, and prefixed attributes while respecting whitespace and quotes.
+A lightweight parser splitting queries and rules into terms, quoted phrases (half-width `""` or full-width `“”`), and prefixed attributes while respecting whitespace and quotes.
 _Avoid_: Lexer, Query parser, Splitter
