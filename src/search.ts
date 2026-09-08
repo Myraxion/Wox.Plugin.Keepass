@@ -102,136 +102,144 @@ export function matchAllTokens(entry: FlattenedEntry, tokens: SearchToken[]): bo
   return true
 }
 
+export const FIELD_WEIGHTS = {
+  Title: 10,
+  URL: 8,
+  Tags: 6,
+  UserName: 5,
+  Notes: 2
+} as const
+
+export const MAX_POSSIBLE_SCORE = 319
+
+/**
+ * 双向 4 阶梯字符串匹配度算法 (参考 KeeWeb Ranking.getStringRank)
+ * @param s1 搜索词
+ * @param s2 字段内容
+ * @returns 10: 完全一致, 5: 前缀匹配, 3: 包含子串, 0: 未命中
+ */
+export function getStringRank(s1: string, s2: string): number {
+  if (!s1 || !s2) {
+    return 0
+  }
+  const s1Lower = s1.toLowerCase()
+  const s2Lower = s2.toLowerCase()
+
+  let ix = s1Lower.indexOf(s2Lower)
+  if (ix === 0 && s1Lower.length === s2Lower.length) {
+    return 10
+  } else if (ix === 0) {
+    return 5
+  } else if (ix > 0) {
+    return 3
+  }
+
+  ix = s2Lower.indexOf(s1Lower)
+  if (ix === 0) {
+    return 5
+  } else if (ix > 0) {
+    return 3
+  }
+
+  return 0
+}
+
 export function calculateFieldCompletenessScore(entry: FlattenedEntry): number {
   let bonus = 0
   const isNonEmpty = (s?: string) => Boolean(s && s.trim().length > 0)
   const rawFields = entry.entry?.fields
 
-  // 1. userName (非空)
-  if (isNonEmpty(entry.userName)) {
-    bonus += 1
-  }
-
-  // 2. password (非空)
+  // 1. password (非空, 凭据要素 +2)
   if (rawFields) {
     const password = getFieldText(rawFields.get("Password"))
     if (password.length > 0) {
-      bonus += 1
+      bonus += 2
     }
   }
 
-  // 3. url (非空)
+  // 2. userName (非空, 凭据要素 +2)
+  if (isNonEmpty(entry.userName)) {
+    bonus += 2
+  }
+
+  // 3. otp (配置了有效 TOTP, 凭据要素 +2)
+  if (rawFields) {
+    const otpText = getFieldText(rawFields.get("otp"))
+    if (parseKeePassTotp(otpText) !== null) {
+      bonus += 2
+    }
+  }
+
+  // 4. url (非空, 元数据 +1)
   if (isNonEmpty(entry.url)) {
     bonus += 1
   }
 
-  // 4. notes (非空)
+  // 5. notes (非空, 元数据 +1)
   if (isNonEmpty(entry.notes)) {
     bonus += 1
   }
 
-  // 5. tags (非空数组)
+  // 6. tags (非空数组, 元数据 +1)
   if (Array.isArray(entry.tags) && entry.tags.length > 0) {
     bonus += 1
-  }
-
-  // 6. otp (配置了有效 TOTP)
-  if (rawFields) {
-    const otpText = getFieldText(rawFields.get("otp"))
-    if (parseKeePassTotp(otpText) !== null) {
-      bonus += 1
-    }
   }
 
   return bonus
 }
 
+function getFieldRank(fieldValue: string, freeText: string, applicableTokens: SearchToken[]): number {
+  if (!fieldValue) return 0
+  let maxRank = 0
+  if (freeText) {
+    maxRank = Math.max(maxRank, getStringRank(freeText, fieldValue))
+  }
+  for (let i = 0; i < applicableTokens.length; i++) {
+    maxRank = Math.max(maxRank, getStringRank(applicableTokens[i].value, fieldValue))
+    if (maxRank === 10) break
+  }
+  return maxRank
+}
+
+function getTagsRank(tags: string[], freeText: string, applicableTokens: SearchToken[]): number {
+  if (!Array.isArray(tags) || tags.length === 0) return 0
+  let maxRank = 0
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i]
+    if (!tag) continue
+    if (freeText) {
+      maxRank = Math.max(maxRank, getStringRank(freeText, tag))
+    }
+    for (let j = 0; j < applicableTokens.length; j++) {
+      maxRank = Math.max(maxRank, getStringRank(applicableTokens[j].value, tag))
+      if (maxRank === 10) return 10
+    }
+  }
+  return maxRank
+}
+
 export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string, tokens: SearchToken[]): number {
-  const titleLower = entry.title.toLowerCase()
-  const searchTrimmed = rawSearch.trim().toLowerCase()
-  let baseScore = 40
+  const nonFieldTokens = tokens.filter(t => !t.field)
+  const freeText = nonFieldTokens.length === tokens.length ? rawSearch.trim() : nonFieldTokens.map(t => t.value).join(" ")
 
-  // 1. Title exact match (100)
-  if (titleLower === searchTrimmed) {
-    baseScore = 100
-  } else {
-    for (let i = 0; i < tokens.length; i++) {
-      const tokenVal = tokens[i].value.toLowerCase()
-      if (!tokens[i].field && titleLower === tokenVal) {
-        baseScore = 100
-        break
-      }
-    }
-  }
+  const titleTokens = nonFieldTokens
+  const urlTokens = tokens.filter(t => !t.field || t.field === "url")
+  const tagsTokens = tokens.filter(t => !t.field || t.field === "t")
+  const userTokens = tokens.filter(t => !t.field || t.field === "u")
+  const notesTokens = nonFieldTokens
 
-  if (baseScore < 100) {
-    // 2. Title prefix match (90)
-    if (titleLower.startsWith(searchTrimmed)) {
-      baseScore = 90
-    } else {
-      for (let i = 0; i < tokens.length; i++) {
-        const tokenVal = tokens[i].value.toLowerCase()
-        if (!tokens[i].field && titleLower.startsWith(tokenVal)) {
-          baseScore = 90
-          break
-        }
-      }
-    }
-  }
+  const titleRank = getFieldRank(entry.title, freeText, titleTokens)
+  const urlRank = getFieldRank(entry.url, freeText, urlTokens)
+  const tagsRank = getTagsRank(entry.tags, freeText, tagsTokens)
+  const userNameRank = getFieldRank(entry.userName, freeText, userTokens)
+  const notesRank = getFieldRank(entry.notes, freeText, notesTokens)
 
-  if (baseScore < 90) {
-    // 3. Title substring match (80)
-    if (titleLower.includes(searchTrimmed)) {
-      baseScore = 80
-    } else {
-      for (let i = 0; i < tokens.length; i++) {
-        const tokenVal = tokens[i].value.toLowerCase()
-        if (!tokens[i].field && titleLower.includes(tokenVal)) {
-          baseScore = 80
-          break
-        }
-      }
-    }
-  }
+  const weightedScore = FIELD_WEIGHTS.Title * titleRank + FIELD_WEIGHTS.URL * urlRank + FIELD_WEIGHTS.Tags * tagsRank + FIELD_WEIGHTS.UserName * userNameRank + FIELD_WEIGHTS.Notes * notesRank
 
-  if (baseScore < 80) {
-    // 4. UserName / URL match (60)
-    const userNameLower = entry.userName.toLowerCase()
-    const urlLower = entry.url.toLowerCase()
-    if (userNameLower.includes(searchTrimmed) || urlLower.includes(searchTrimmed)) {
-      baseScore = 60
-    } else {
-      for (let i = 0; i < tokens.length; i++) {
-        const tokenVal = tokens[i].value.toLowerCase()
-        if (tokens[i].field === "u" || tokens[i].field === "url" || !tokens[i].field) {
-          if (userNameLower.includes(tokenVal) || urlLower.includes(tokenVal)) {
-            baseScore = 60
-            break
-          }
-        }
-      }
-    }
-  }
+  const completenessBonus = calculateFieldCompletenessScore(entry)
+  const totalScore = weightedScore + completenessBonus
 
-  if (baseScore < 60) {
-    // 5. Tags / Notes match (40)
-    const notesLower = entry.notes.toLowerCase()
-    if (notesLower.includes(searchTrimmed) || entry.tags.some(t => t.toLowerCase().includes(searchTrimmed))) {
-      baseScore = 40
-    } else {
-      for (let i = 0; i < tokens.length; i++) {
-        const tokenVal = tokens[i].value.toLowerCase()
-        if (tokens[i].field === "t" || !tokens[i].field) {
-          if (entry.tags.some(t => t.toLowerCase().includes(tokenVal)) || notesLower.includes(tokenVal)) {
-            baseScore = 40
-            break
-          }
-        }
-      }
-    }
-  }
-
-  return baseScore + calculateFieldCompletenessScore(entry)
+  return Math.min(100, Math.max(0, Math.floor((totalScore / MAX_POSSIBLE_SCORE) * 100)))
 }
 
 export function isEntryExcluded(entry: FlattenedEntry, rules: ExcludeRule[]): boolean {

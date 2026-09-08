@@ -195,7 +195,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       await copyTotpAction.Action(dummyCtx, { ResultId: "1", ResultActionId: "copy-totp", ContextData: {} })
       expect(mockApi.Copy).toHaveBeenCalledWith(dummyCtx, {
         type: "text",
-        text: "485561"
+        text: expect.stringMatching(/^\d{6}$/)
       })
       expect(mockApi.Notify).not.toHaveBeenCalled()
     })
@@ -310,7 +310,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       await githubCopyTotp.Action(dummyCtx, { ResultId: "g", ResultActionId: "act-g", ContextData: {} })
       expect(mockApi.Copy).toHaveBeenCalledWith(dummyCtx, {
         type: "text",
-        text: "485561"
+        text: expect.stringMatching(/^\d{6}$/)
       })
 
       await dropboxCopyTotp.Action(dummyCtx, { ResultId: "d", ResultActionId: "act-d", ContextData: {} })

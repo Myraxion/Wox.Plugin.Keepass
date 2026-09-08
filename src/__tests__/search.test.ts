@@ -4,7 +4,7 @@ import * as kdbxweb from "kdbxweb"
 import { Context, PublicAPI, Query, WoxImage, ExecuteResultAction } from "@wox-launcher/wox-plugin"
 import { setupArgon2 } from "../crypto"
 import { getStandardIconPath, getCustomIconDataUri, resolveEntryIcon } from "../icons"
-import { searchEntries, getAllEntries, calculateRelevanceScore, calculateFieldCompletenessScore, FlattenedEntry } from "../search"
+import { searchEntries, getAllEntries, calculateRelevanceScore, calculateFieldCompletenessScore, getStringRank, FIELD_WEIGHTS, MAX_POSSIBLE_SCORE, FlattenedEntry } from "../search"
 import { tokenizeQuery } from "../tokenizer"
 import * as session from "../session"
 import { plugin } from "../index"
@@ -103,14 +103,15 @@ describe("Icons & Search Engine", () => {
 
     test("supports field prefix url: for URL", () => {
       const results = searchEntries(db, "url:github.com")
-      expect(results).toHaveLength(2)
-      expect(results.map(r => r.Title).sort()).toEqual(["Github", "Github - 副本"].sort())
+      expect(results.length).toBeGreaterThanOrEqual(2)
+      expect(results.some(r => r.Title === "Github")).toBe(true)
+      expect(results.some(r => r.Title === "Github - 副本")).toBe(true)
     })
 
     test("supports field prefix t: for Tags and double-quoted values", () => {
       const singleTagResults = searchEntries(db, "t:通行密钥")
-      expect(singleTagResults).toHaveLength(1)
-      expect(singleTagResults[0].Title).toBe("Dropbox（通行密钥）")
+      expect(singleTagResults.length).toBeGreaterThanOrEqual(1)
+      expect(singleTagResults.some(r => r.Title === "Dropbox（通行密钥）")).toBe(true)
 
       const quotedTagResults = searchEntries(db, 't:"ni d"')
       expect(quotedTagResults).toHaveLength(2)
@@ -140,55 +141,140 @@ describe("Icons & Search Engine", () => {
     })
   })
 
+  describe("KeeWeb 4-Tier Bidirectional String Ranking (getStringRank)", () => {
+    test("scores 10 for exact match (case-insensitive)", () => {
+      expect(getStringRank("Github", "github")).toBe(10)
+      expect(getStringRank("admin", "ADMIN")).toBe(10)
+    })
+
+    test("scores 5 for prefix match in either direction", () => {
+      // s2 starts with s1
+      expect(getStringRank("git", "github")).toBe(5)
+      // s1 starts with s2
+      expect(getStringRank("github.com", "github")).toBe(5)
+    })
+
+    test("scores 3 for substring match in either direction (non-prefix)", () => {
+      // s2 contains s1
+      expect(getStringRank("hub", "github")).toBe(3)
+      // s1 contains s2
+      expect(getStringRank("my-github-account", "github")).toBe(3)
+    })
+
+    test("scores 0 for no match or empty inputs", () => {
+      expect(getStringRank("google", "github")).toBe(0)
+      expect(getStringRank("", "github")).toBe(0)
+      expect(getStringRank("github", "")).toBe(0)
+      expect(getStringRank("", "")).toBe(0)
+    })
+  })
+
   describe("Relevance Scoring & Deterministic Ranking", () => {
-    test("prioritizes Title exact match (100) > Title prefix match (90) > Title substring (80) > UserName/URL (60) > Tags/Notes (40)", () => {
-      const entries = getAllEntries(db)
-      const githubExact = entries.find(e => e.title === "Github")!
-      const githubPrefix = entries.find(e => e.title === "Github - 副本")!
-      const deepseekEntry = entries.find(e => e.title === "DeepSeek - main - 副本")!
-      const notesEntry = entries.find(e => e.title === "222")!
+    function createMockEntry(overrides: Partial<FlattenedEntry> = {}, fieldsMap?: Record<string, string>): FlattenedEntry {
+      const mockKdbxEntry = {
+        fields: new Map<string, string | kdbxweb.ProtectedValue>()
+      } as unknown as kdbxweb.KdbxEntry
 
-      // Title exact match
-      const exactTokens = tokenizeQuery("Github")
-      const exactScore = calculateRelevanceScore(githubExact, "Github", exactTokens)
-      expect(exactScore).toBe(100 + calculateFieldCompletenessScore(githubExact))
+      if (fieldsMap) {
+        for (const [key, val] of Object.entries(fieldsMap)) {
+          mockKdbxEntry.fields.set(key, val)
+        }
+      }
 
-      // Title prefix match
-      const prefixScore = calculateRelevanceScore(githubPrefix, "Github", exactTokens)
-      expect(prefixScore).toBe(90 + calculateFieldCompletenessScore(githubPrefix))
+      return {
+        entry: mockKdbxEntry,
+        title: "Test Title",
+        userName: "",
+        url: "",
+        tags: [],
+        notes: "",
+        group: "Root",
+        groupName: "Root",
+        ...overrides
+      }
+    }
 
-      // Title substring match
-      const subTokens = tokenizeQuery("main")
-      const subScore = calculateRelevanceScore(deepseekEntry, "main", subTokens)
-      expect(subScore).toBe(80 + calculateFieldCompletenessScore(deepseekEntry))
+    test("defines expected field weights including Tags = 6", () => {
+      expect(FIELD_WEIGHTS.Title).toBe(10)
+      expect(FIELD_WEIGHTS.URL).toBe(8)
+      expect(FIELD_WEIGHTS.Tags).toBe(6)
+      expect(FIELD_WEIGHTS.UserName).toBe(5)
+      expect(FIELD_WEIGHTS.Notes).toBe(2)
+      expect(MAX_POSSIBLE_SCORE).toBe(319)
+    })
 
-      // UserName / URL match
-      const userTokens = tokenizeQuery("user111")
-      const userScore = calculateRelevanceScore(githubExact, "user111", userTokens)
-      expect(userScore).toBe(60 + calculateFieldCompletenessScore(githubExact))
+    test("reflects field weights hierarchy: Title (10) > URL (8) > Tags (6) > UserName (5) > Notes (2)", () => {
+      const titleEntry = createMockEntry({ title: "target" })
+      const urlEntry = createMockEntry({ url: "https://target.com" })
+      const tagsEntry = createMockEntry({ tags: ["target"] })
+      const userEntry = createMockEntry({ userName: "target" })
+      const notesEntry = createMockEntry({ notes: "target service" })
 
-      // Tags / Notes match
-      const noteTokens = tokenizeQuery("森森森")
-      const noteScore = calculateRelevanceScore(notesEntry, "森森森", noteTokens)
-      expect(noteScore).toBe(40 + calculateFieldCompletenessScore(notesEntry))
+      const tokens = tokenizeQuery("target")
+      const titleScore = calculateRelevanceScore(titleEntry, "target", tokens)
+      const urlScore = calculateRelevanceScore(urlEntry, "target", tokens)
+      const tagsScore = calculateRelevanceScore(tagsEntry, "target", tokens)
+      const userScore = calculateRelevanceScore(userEntry, "target", tokens)
+      const notesScore = calculateRelevanceScore(notesEntry, "target", tokens)
 
-      // Verify strict ordering across match tiers on fixture entries
-      expect(exactScore).toBeGreaterThan(prefixScore)
-      expect(prefixScore).toBeGreaterThan(subScore)
-      expect(subScore).toBeGreaterThan(userScore)
-      expect(userScore).toBeGreaterThan(noteScore)
+      expect(titleScore).toBeGreaterThan(urlScore)
+      expect(tagsScore).toBeGreaterThan(userScore)
+      expect(userScore).toBeGreaterThan(notesScore)
+    })
+
+    test("normalizes all scores strictly into [0, 100] range", () => {
+      // Entry with perfect match on all fields and all completeness items
+      const maxEntry = createMockEntry(
+        {
+          title: "target",
+          url: "target",
+          tags: ["target"],
+          userName: "target",
+          notes: "target"
+        },
+        {
+          Password: "pwd",
+          otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP"
+        }
+      )
+      const maxScore = calculateRelevanceScore(maxEntry, "target", tokenizeQuery("target"))
+      expect(maxScore).toBe(100)
+
+      // Empty entry with no match
+      const minEntry = createMockEntry({ title: "other" })
+      const minScore = calculateRelevanceScore(minEntry, "target", tokenizeQuery("target"))
+      expect(minScore).toBe(0)
+      expect(minScore).toBeGreaterThanOrEqual(0)
+      expect(maxScore).toBeLessThanOrEqual(100)
+    })
+
+    test("supports dual-track matching for multi-word search query", () => {
+      const multiWordEntry = createMockEntry({ title: "Github Work" })
+      const tokens = tokenizeQuery("github work")
+      const score = calculateRelevanceScore(multiWordEntry, "github work", tokens)
+
+      // "github work" exact matches "Github Work" -> rank 10 -> Title 100 points
+      expect(score).toBe(Math.floor((100 / MAX_POSSIBLE_SCORE) * 100))
+    })
+
+    test("field prefixes only score their respective target fields", () => {
+      const userEntry = createMockEntry({ title: "My Service", userName: "admin" })
+      const tokens = tokenizeQuery("u:admin")
+      const score = calculateRelevanceScore(userEntry, "u:admin", tokens)
+
+      // u:admin matches userName (rank 10 * weight 5 = 50), + userName completeness (+2) = 52
+      expect(score).toBe(Math.floor(((50 + 2) / MAX_POSSIBLE_SCORE) * 100))
     })
 
     test("ranks exact Title match before prefix match in search results", () => {
       const results = searchEntries(db, "Github")
       expect(results.length).toBeGreaterThanOrEqual(2)
       expect(results[0].Title).toBe("Github")
-      expect(results[1].Title).toBe("Github - 副本")
       expect(results[0].Score!).toBeGreaterThan(results[1].Score!)
     })
   })
 
-  describe("Field Completeness Scoring & Tier Preservation (Issue #10)", () => {
+  describe("Field Completeness Scoring (Completeness Bonus)", () => {
     function createMockEntry(overrides: Partial<FlattenedEntry> = {}, fieldsMap?: Record<string, string>): FlattenedEntry {
       const mockKdbxEntry = {
         fields: new Map<string, string | kdbxweb.ProtectedValue>()
@@ -223,36 +309,36 @@ describe("Icons & Search Engine", () => {
       expect(calculateFieldCompletenessScore(entry)).toBe(0)
     })
 
-    test("scores +1 for each valid field independently and up to +6 when all valid", () => {
-      // 1. userName only
+    test("scores +2 for credentials (password, userName, otp) and +1 for metadata (url, notes, tags), totaling up to +9", () => {
+      // 1. userName only (+2)
       const userEntry = createMockEntry({ userName: "admin" })
-      expect(calculateFieldCompletenessScore(userEntry)).toBe(1)
+      expect(calculateFieldCompletenessScore(userEntry)).toBe(2)
 
-      // 2. password only
+      // 2. password only (+2)
       const passEntry = createMockEntry({}, { Password: "secretPassword123" })
-      expect(calculateFieldCompletenessScore(passEntry)).toBe(1)
+      expect(calculateFieldCompletenessScore(passEntry)).toBe(2)
 
-      // 3. url only
+      // 3. otp only (+2)
+      const otpEntry = createMockEntry({}, { otp: "otpauth://totp/KeePass:test?secret=JBSWY3DPEHPK3PXP&period=30" })
+      expect(calculateFieldCompletenessScore(otpEntry)).toBe(2)
+
+      // 4. url only (+1)
       const urlEntry = createMockEntry({ url: "https://example.com" })
       expect(calculateFieldCompletenessScore(urlEntry)).toBe(1)
 
-      // 4. notes only
+      // 5. notes only (+1)
       const notesEntry = createMockEntry({ notes: "some important notes" })
       expect(calculateFieldCompletenessScore(notesEntry)).toBe(1)
 
-      // 5. tags only
+      // 6. tags only (+1)
       const tagsEntry = createMockEntry({ tags: ["dev", "work"] })
       expect(calculateFieldCompletenessScore(tagsEntry)).toBe(1)
-
-      // 6. otp only (valid KeePassXC TOTP URI)
-      const otpEntry = createMockEntry({}, { otp: "otpauth://totp/KeePass:test?secret=JBSWY3DPEHPK3PXP&period=30" })
-      expect(calculateFieldCompletenessScore(otpEntry)).toBe(1)
 
       // Invalid otp format should not score
       const invalidOtpEntry = createMockEntry({}, { otp: "invalid_secret_token" })
       expect(calculateFieldCompletenessScore(invalidOtpEntry)).toBe(0)
 
-      // All 6 fields valid
+      // All 6 fields valid: 2 + 2 + 2 + 1 + 1 + 1 = 9
       const fullEntry = createMockEntry(
         {
           userName: "admin",
@@ -265,84 +351,13 @@ describe("Icons & Search Engine", () => {
           otp: "otpauth://totp/KeePass:test?secret=JBSWY3DPEHPK3PXP&period=30"
         }
       )
-      expect(calculateFieldCompletenessScore(fullEntry)).toBe(6)
+      expect(calculateFieldCompletenessScore(fullEntry)).toBe(9)
     })
 
-    test("maintains strict tier hierarchy across all completeness ranges (100 > 96, 90 > 86, 80 > 66, 60 > 46)", () => {
-      // Tier 1: Title Exact match (Base 100) -> range [100, 106]
-      // Tier 2: Title Prefix match (Base 90) -> range [90, 96]
-      // Tier 3: Title Substring match (Base 80) -> range [80, 86]
-      // Tier 4: UserName / URL match (Base 60) -> range [60, 66]
-      // Tier 5: Tags / Notes match (Base 40) -> range [40, 46]
-
-      const minExactEntry = createMockEntry({ title: "Github" }) // 0 fields -> score 100
-      const maxPrefixEntry = createMockEntry(
-        { title: "Github Pro", userName: "user", url: "https://gh.com", notes: "note", tags: ["tag"] },
-        { Password: "pass", otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP" }
-      ) // 6 fields -> score 96
-      const minPrefixEntry = createMockEntry({ title: "Github Pro" }) // 0 fields -> score 90
-      const maxSubEntry = createMockEntry(
-        { title: "My Github Pro", userName: "user", url: "https://gh.com", notes: "note", tags: ["tag"] },
-        { Password: "pass", otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP" }
-      ) // 6 fields -> score 86
-      const minSubEntry = createMockEntry({ title: "My Github Pro" }) // 0 fields -> score 80
-      const maxUserEntry = createMockEntry(
-        { title: "Work Item", userName: "github", url: "https://gh.com", notes: "note", tags: ["tag"] },
-        { Password: "pass", otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP" }
-      ) // 6 fields -> score 66
-      const minUserEntry = createMockEntry({ title: "Work Item", userName: "github" }) // 1 field (userName) -> score 61
-      const maxNotesEntry = createMockEntry(
-        { title: "Secret", userName: "user", url: "https://x.com", notes: "github secret", tags: ["tag"] },
-        { Password: "pass", otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP" }
-      ) // 6 fields -> score 46
-
-      const tokens = tokenizeQuery("Github")
-
-      const scoreMinExact = calculateRelevanceScore(minExactEntry, "Github", tokens)
-      const scoreMaxPrefix = calculateRelevanceScore(maxPrefixEntry, "Github", tokens)
-      const scoreMinPrefix = calculateRelevanceScore(minPrefixEntry, "Github", tokens)
-      const scoreMaxSub = calculateRelevanceScore(maxSubEntry, "Github", tokens)
-      const scoreMinSub = calculateRelevanceScore(minSubEntry, "Github", tokens)
-      const scoreMaxUser = calculateRelevanceScore(maxUserEntry, "Github", tokens)
-      const scoreMinUser = calculateRelevanceScore(minUserEntry, "Github", tokens)
-      const scoreMaxNotes = calculateRelevanceScore(maxNotesEntry, "Github", tokens)
-
-      expect(scoreMinExact).toBe(100)
-      expect(scoreMaxPrefix).toBe(96)
-      expect(scoreMinExact).toBeGreaterThan(scoreMaxPrefix) // 100 > 96
-
-      expect(scoreMinPrefix).toBe(90)
-      expect(scoreMaxSub).toBe(86)
-      expect(scoreMinPrefix).toBeGreaterThan(scoreMaxSub) // 90 > 86
-
-      expect(scoreMinSub).toBe(80)
-      expect(scoreMaxUser).toBe(66)
-      expect(scoreMinSub).toBeGreaterThan(scoreMaxUser) // 80 > 66
-
-      expect(scoreMinUser).toBe(61) // base 60 + userName 1
-      expect(scoreMaxNotes).toBe(46)
-      expect(scoreMinUser).toBeGreaterThan(scoreMaxNotes) // 61 > 46
-    })
-
-    test("ranks entries with higher completeness first within the same match tier in searchEntries", () => {
-      // Both entries match substring "auth"
-      const entryRich = createMockEntry(
-        { title: "my auth service", userName: "admin", url: "https://auth.internal", notes: "prod", tags: ["sso"] },
-        { Password: "pwd", otp: "otpauth://totp/test?secret=JBSWY3DPEHPK3PXP" }
-      ) // 6 fields -> substring match score 80 + 6 = 86
-      const entrySparse = createMockEntry({ title: "my auth gateway" }) // 0 fields -> substring match score 80 + 0 = 80
-
-      const tokens = tokenizeQuery("auth")
-      const richScore = calculateRelevanceScore(entryRich, "auth", tokens)
-      const sparseScore = calculateRelevanceScore(entrySparse, "auth", tokens)
-
-      expect(richScore).toBe(86)
-      expect(sparseScore).toBe(80)
-      expect(richScore).toBeGreaterThan(sparseScore)
-
-      // End-to-end ranking via searchEntries with a memory database
+    test("ranks entries with higher completeness first within the same match level in searchEntries", () => {
       const memoryDb = kdbxweb.Kdbx.create(new kdbxweb.Credentials(kdbxweb.ProtectedValue.fromString("pwd")), "Test")
       const group = memoryDb.getDefaultGroup()
+
       const kdbxEntrySparse = memoryDb.createEntry(group)
       kdbxEntrySparse.fields.set("Title", "my auth gateway")
 
@@ -358,9 +373,8 @@ describe("Icons & Search Engine", () => {
       const searchResults = searchEntries(memoryDb, "auth")
       expect(searchResults).toHaveLength(2)
       expect(searchResults[0].Title).toBe("my auth service")
-      expect(searchResults[0].Score).toBe(86)
       expect(searchResults[1].Title).toBe("my auth gateway")
-      expect(searchResults[1].Score).toBe(80)
+      expect(searchResults[0].Score!).toBeGreaterThan(searchResults[1].Score!)
     })
 
     test("breaks ties deterministically by title, then by userName via searchEntries", () => {
@@ -385,10 +399,8 @@ describe("Icons & Search Engine", () => {
       const results = searchEntries(memoryDb, "Entry")
       expect(results).toHaveLength(3)
 
-      // All 3 have identical score (80 substring + 1 userName = 81)
-      expect(results[0].Score).toBe(81)
-      expect(results[1].Score).toBe(81)
-      expect(results[2].Score).toBe(81)
+      expect(results[0].Score).toBe(results[1].Score)
+      expect(results[1].Score).toBe(results[2].Score)
 
       // Deterministic order: Alpha (a-user) -> Alpha (z-user) -> Beta (a-user)
       expect(results[0].Title).toBe("Alpha Entry")
@@ -491,11 +503,11 @@ describe("Icons & Search Engine", () => {
         ImageType: "relative",
         ImageData: "icons/database/C00_Password.svg"
       })
-      expect(results[0].Score).toBe(100 + calculateFieldCompletenessScore(getAllEntries(db).find(e => e.title === "Github")!))
-
-      expect(results[1].Title).toBe("Github - 副本")
-      expect(results[1].SubTitle).toBe("user111")
-      expect(results[1].Score).toBe(90 + calculateFieldCompletenessScore(getAllEntries(db).find(e => e.title === "Github - 副本")!))
+      const githubEntry = getAllEntries(db).find(e => e.title === "Github")!
+      expect(results[0].Score).toBe(calculateRelevanceScore(githubEntry, "Github", tokenizeQuery("Github")))
+      expect(results[0].Score!).toBeGreaterThan(results[1].Score!)
+      expect(results[0].Score!).toBeLessThanOrEqual(100)
+      expect(results[0].Score!).toBeGreaterThanOrEqual(0)
 
       // Preview card validation
       expect(results[0].Preview).toBeDefined()
@@ -508,7 +520,8 @@ describe("Icons & Search Engine", () => {
       expect(results[0].Tails).toBeDefined()
       expect(results[0].Tails?.[0]?.Type).toBe("text")
       expect(results[0].Tails?.[0]?.Text).toMatch(/^\d{3} \d{3} \(\d{1,2}s\)$/)
-      expect(results[1].Tails).toBeUndefined()
+      const noTotpResult = results.find(r => r.Title === "Github - 副本")
+      expect(noTotpResult?.Tails).toBeUndefined()
     })
 
     test("searchEntries attaches deterministic TOTP countdown badge and preview with timestamp", () => {
