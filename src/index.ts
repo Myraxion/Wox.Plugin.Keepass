@@ -169,8 +169,16 @@ export const plugin: Plugin = {
       }
 
       const searchPattern = `url:"${hostname}"`
+      const results = searchEntries(db, searchPattern, api, { excludeRules: config.excludeRules })
+      const pluginAppIcon = {
+        ImageType: "relative" as const,
+        ImageData: "icons/app.svg"
+      }
       return {
-        Results: searchEntries(db, searchPattern, api, { excludeRules: config.excludeRules })
+        Results: results.map(item => ({
+          ...item,
+          Icon: pluginAppIcon
+        }))
       }
     }
 

@@ -126,11 +126,19 @@ describe("Selection Query Handling", () => {
     const results1 = Array.isArray(response1) ? response1 : response1.Results
     expect(results1.length).toBeGreaterThanOrEqual(1)
     expect(results1[0].Title).toContain("Github")
+    expect(results1[0].Icon).toEqual({
+      ImageType: "relative",
+      ImageData: "icons/app.svg"
+    })
 
     // Case 2: Protocol-less domain
     const response2 = await plugin.query(ctx, createSelectionQuery("github.com"))
     const results2 = Array.isArray(response2) ? response2 : response2.Results
     expect(results2.length).toBeGreaterThanOrEqual(1)
     expect(results2[0].Title).toContain("Github")
+    expect(results2[0].Icon).toEqual({
+      ImageType: "relative",
+      ImageData: "icons/app.svg"
+    })
   })
 })
