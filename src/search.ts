@@ -3,7 +3,7 @@ import * as kdbxweb from "kdbxweb"
 import { SearchToken, tokenizeQuery, ExcludeRule, parseExcludeRules } from "./tokenizer"
 import { resolveEntryIcon } from "./icons"
 import { buildEntryPreview } from "./preview"
-import { getEntryTotp } from "./totp"
+import { getEntryTotp, parseKeePassTotp } from "./totp"
 import { buildEntryActions, BuildActionsOptions } from "./actions"
 
 export interface SearchOptions extends BuildActionsOptions {
@@ -102,73 +102,136 @@ export function matchAllTokens(entry: FlattenedEntry, tokens: SearchToken[]): bo
   return true
 }
 
+export function calculateFieldCompletenessScore(entry: FlattenedEntry): number {
+  let bonus = 0
+  const isNonEmpty = (s?: string) => Boolean(s && s.trim().length > 0)
+  const rawFields = entry.entry?.fields
+
+  // 1. userName (非空)
+  if (isNonEmpty(entry.userName)) {
+    bonus += 1
+  }
+
+  // 2. password (非空)
+  if (rawFields) {
+    const password = getFieldText(rawFields.get("Password"))
+    if (password.length > 0) {
+      bonus += 1
+    }
+  }
+
+  // 3. url (非空)
+  if (isNonEmpty(entry.url)) {
+    bonus += 1
+  }
+
+  // 4. notes (非空)
+  if (isNonEmpty(entry.notes)) {
+    bonus += 1
+  }
+
+  // 5. tags (非空数组)
+  if (Array.isArray(entry.tags) && entry.tags.length > 0) {
+    bonus += 1
+  }
+
+  // 6. otp (配置了有效 TOTP)
+  if (rawFields) {
+    const otpText = getFieldText(rawFields.get("otp"))
+    if (parseKeePassTotp(otpText) !== null) {
+      bonus += 1
+    }
+  }
+
+  return bonus
+}
+
 export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string, tokens: SearchToken[]): number {
   const titleLower = entry.title.toLowerCase()
   const searchTrimmed = rawSearch.trim().toLowerCase()
+  let baseScore = 40
 
   // 1. Title exact match (100)
   if (titleLower === searchTrimmed) {
-    return 100
-  }
-  for (let i = 0; i < tokens.length; i++) {
-    const tokenVal = tokens[i].value.toLowerCase()
-    if (!tokens[i].field && titleLower === tokenVal) {
-      return 100
-    }
-  }
-
-  // 2. Title prefix match (90)
-  if (titleLower.startsWith(searchTrimmed)) {
-    return 90
-  }
-  for (let i = 0; i < tokens.length; i++) {
-    const tokenVal = tokens[i].value.toLowerCase()
-    if (!tokens[i].field && titleLower.startsWith(tokenVal)) {
-      return 90
-    }
-  }
-
-  // 3. Title substring match (80)
-  if (titleLower.includes(searchTrimmed)) {
-    return 80
-  }
-  for (let i = 0; i < tokens.length; i++) {
-    const tokenVal = tokens[i].value.toLowerCase()
-    if (!tokens[i].field && titleLower.includes(tokenVal)) {
-      return 80
-    }
-  }
-
-  // 4. UserName / URL match (60)
-  const userNameLower = entry.userName.toLowerCase()
-  const urlLower = entry.url.toLowerCase()
-  if (userNameLower.includes(searchTrimmed) || urlLower.includes(searchTrimmed)) {
-    return 60
-  }
-  for (let i = 0; i < tokens.length; i++) {
-    const tokenVal = tokens[i].value.toLowerCase()
-    if (tokens[i].field === "u" || tokens[i].field === "url" || !tokens[i].field) {
-      if (userNameLower.includes(tokenVal) || urlLower.includes(tokenVal)) {
-        return 60
+    baseScore = 100
+  } else {
+    for (let i = 0; i < tokens.length; i++) {
+      const tokenVal = tokens[i].value.toLowerCase()
+      if (!tokens[i].field && titleLower === tokenVal) {
+        baseScore = 100
+        break
       }
     }
   }
 
-  // 5. Tags / Notes match (40)
-  const notesLower = entry.notes.toLowerCase()
-  if (notesLower.includes(searchTrimmed) || entry.tags.some(t => t.toLowerCase().includes(searchTrimmed))) {
-    return 40
-  }
-  for (let i = 0; i < tokens.length; i++) {
-    const tokenVal = tokens[i].value.toLowerCase()
-    if (tokens[i].field === "t" || !tokens[i].field) {
-      if (entry.tags.some(t => t.toLowerCase().includes(tokenVal)) || notesLower.includes(tokenVal)) {
-        return 40
+  if (baseScore < 100) {
+    // 2. Title prefix match (90)
+    if (titleLower.startsWith(searchTrimmed)) {
+      baseScore = 90
+    } else {
+      for (let i = 0; i < tokens.length; i++) {
+        const tokenVal = tokens[i].value.toLowerCase()
+        if (!tokens[i].field && titleLower.startsWith(tokenVal)) {
+          baseScore = 90
+          break
+        }
       }
     }
   }
 
-  return 40
+  if (baseScore < 90) {
+    // 3. Title substring match (80)
+    if (titleLower.includes(searchTrimmed)) {
+      baseScore = 80
+    } else {
+      for (let i = 0; i < tokens.length; i++) {
+        const tokenVal = tokens[i].value.toLowerCase()
+        if (!tokens[i].field && titleLower.includes(tokenVal)) {
+          baseScore = 80
+          break
+        }
+      }
+    }
+  }
+
+  if (baseScore < 80) {
+    // 4. UserName / URL match (60)
+    const userNameLower = entry.userName.toLowerCase()
+    const urlLower = entry.url.toLowerCase()
+    if (userNameLower.includes(searchTrimmed) || urlLower.includes(searchTrimmed)) {
+      baseScore = 60
+    } else {
+      for (let i = 0; i < tokens.length; i++) {
+        const tokenVal = tokens[i].value.toLowerCase()
+        if (tokens[i].field === "u" || tokens[i].field === "url" || !tokens[i].field) {
+          if (userNameLower.includes(tokenVal) || urlLower.includes(tokenVal)) {
+            baseScore = 60
+            break
+          }
+        }
+      }
+    }
+  }
+
+  if (baseScore < 60) {
+    // 5. Tags / Notes match (40)
+    const notesLower = entry.notes.toLowerCase()
+    if (notesLower.includes(searchTrimmed) || entry.tags.some(t => t.toLowerCase().includes(searchTrimmed))) {
+      baseScore = 40
+    } else {
+      for (let i = 0; i < tokens.length; i++) {
+        const tokenVal = tokens[i].value.toLowerCase()
+        if (tokens[i].field === "t" || !tokens[i].field) {
+          if (entry.tags.some(t => t.toLowerCase().includes(tokenVal)) || notesLower.includes(tokenVal)) {
+            baseScore = 40
+            break
+          }
+        }
+      }
+    }
+  }
+
+  return baseScore + calculateFieldCompletenessScore(entry)
 }
 
 export function isEntryExcluded(entry: FlattenedEntry, rules: ExcludeRule[]): boolean {
