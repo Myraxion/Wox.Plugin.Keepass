@@ -254,7 +254,7 @@ describe("Icons & Search Engine", () => {
       const score = calculateRelevanceScore(multiWordEntry, "github work", tokens)
 
       // "github work" exact matches "Github Work" -> rank 10 -> Title 100 points
-      expect(score).toBe(Math.floor((100 / MAX_POSSIBLE_SCORE) * 100))
+      expect(score).toBe(Math.round((100 / MAX_POSSIBLE_SCORE) * 100))
     })
 
     test("field prefixes only score their respective target fields", () => {
@@ -263,7 +263,7 @@ describe("Icons & Search Engine", () => {
       const score = calculateRelevanceScore(userEntry, "u:admin", tokens)
 
       // u:admin matches userName (rank 10 * weight 5 = 50), + userName completeness (+2) = 52
-      expect(score).toBe(Math.floor(((50 + 2) / MAX_POSSIBLE_SCORE) * 100))
+      expect(score).toBe(Math.round(((50 + 2) / MAX_POSSIBLE_SCORE) * 100))
     })
 
     test("ranks exact Title match before prefix match in search results", () => {
@@ -271,6 +271,9 @@ describe("Icons & Search Engine", () => {
       expect(results.length).toBeGreaterThanOrEqual(2)
       expect(results[0].Title).toBe("Github")
       expect(results[0].Score!).toBeGreaterThan(results[1].Score!)
+      expect(results[0].Id).toBeDefined()
+      expect(typeof results[0].Id).toBe("string")
+      expect(results[0].Id).toBeTruthy()
     })
   })
 

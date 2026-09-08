@@ -239,7 +239,7 @@ export function calculateRelevanceScore(entry: FlattenedEntry, rawSearch: string
   const completenessBonus = calculateFieldCompletenessScore(entry)
   const totalScore = weightedScore + completenessBonus
 
-  return Math.min(100, Math.max(0, Math.floor((totalScore / MAX_POSSIBLE_SCORE) * 100)))
+  return Math.min(100, Math.max(0, Math.round((totalScore / MAX_POSSIBLE_SCORE) * 100)))
 }
 
 export function isEntryExcluded(entry: FlattenedEntry, rules: ExcludeRule[]): boolean {
@@ -313,7 +313,9 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?:
   return matched.map(m => {
     const otpField = getFieldText(m.entry.entry.fields.get("otp"))
     const totpInfo = getEntryTotp(otpField, activeOptions.timestamp)
+    const entryUuid = m.entry.entry?.uuid?.id || `${m.entry.title}:${m.entry.userName}`
     const result: Result = {
+      Id: entryUuid,
       Title: m.entry.title,
       SubTitle: m.entry.userName,
       Icon: resolveEntryIcon(m.entry.entry, db),
