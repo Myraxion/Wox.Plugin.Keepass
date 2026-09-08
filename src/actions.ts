@@ -2,6 +2,7 @@ import { Context, PublicAPI, ResultAction } from "@wox-launcher/wox-plugin"
 import { spawn } from "child_process"
 import { FlattenedEntry, getFieldText } from "./search"
 import { getEntryTotp } from "./totp"
+import { t } from "./i18n"
 
 export type UrlOpener = (url: string) => Promise<void> | void
 
@@ -31,7 +32,7 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
 
   return [
     {
-      Name: "复制密码",
+      Name: t("action_copy_password"),
       IsDefault: true,
       PreventHideAfterAction: false,
       Icon: {
@@ -47,7 +48,7 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
       }
     },
     {
-      Name: "复制用户名",
+      Name: t("action_copy_username"),
       Hotkey: `${mod}+u`,
       PreventHideAfterAction: false,
       Icon: {
@@ -62,7 +63,7 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
       }
     },
     {
-      Name: "复制 TOTP",
+      Name: t("action_copy_totp"),
       Hotkey: `${mod}+t`,
       PreventHideAfterAction: false,
       Icon: {
@@ -78,12 +79,12 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
             text: totpInfo.token
           })
         } else {
-          await api.Notify(ctx, "未配置 TOTP")
+          await api.Notify(ctx, t("msg_no_totp"))
         }
       }
     },
     {
-      Name: "打开网址",
+      Name: t("action_open_url"),
       Hotkey: `${mod}+o`,
       PreventHideAfterAction: false,
       Icon: {
@@ -96,7 +97,7 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
           const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
           await opener(targetUrl)
         } else {
-          await api.Notify(ctx, "未配置网址")
+          await api.Notify(ctx, t("msg_no_url"))
         }
       }
     }

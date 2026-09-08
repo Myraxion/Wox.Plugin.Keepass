@@ -3,6 +3,7 @@ import { setupArgon2 } from "./crypto"
 import * as session from "./session"
 import { searchEntries } from "./search"
 import { extractUrlHostname } from "./url"
+import { initI18n, t } from "./i18n"
 
 interface PluginConfig {
   kdbxFilePath: string
@@ -21,18 +22,7 @@ const config: PluginConfig = {
 }
 
 function getUnconfiguredMarkdown(): string {
-  return [
-    "# ⚙️ KeePass 数据库未配置",
-    "",
-    "当前尚未配置 KeePass 数据库文件路径。",
-    "",
-    "### 配置步骤：",
-    "1. 打开 Wox 设置 -> 插件 -> KeePass",
-    "2. 在 **KeePass 数据库路径** (`kdbxFilePath`) 中填入数据库文件的绝对路径",
-    "3. （可选）若使用了密钥文件，在 **密钥文件路径** (`keyFilePath`) 中填入密钥文件的绝对路径",
-    "4. （可选）调整 **自动锁定超时** (`autoLockTimeout`) 与 **排除规则** (`excludeRules`)",
-    "5. 保存设置后，在搜索框中重新输入 `kp` 即可开始使用"
-  ].join("\n")
+  return t("unconfigured_markdown")
 }
 
 let toolbarClearTimer: NodeJS.Timeout | null = null
@@ -77,6 +67,7 @@ export const plugin: Plugin = {
   init: async (ctx: Context, initParams: PluginInitParams) => {
     api = initParams.API
     setupArgon2()
+    await initI18n(api, ctx)
 
     const [kdbxFilePath, keyFilePath, autoLockTimeout, excludeRules] = await Promise.all([
       api.GetSetting(ctx, "kdbxFilePath"),
@@ -121,8 +112,8 @@ export const plugin: Plugin = {
       return {
         Results: [
           {
-            Title: "⚙️ 请先配置 KeePass 数据库路径",
-            SubTitle: "请在插件设置中指定数据库文件的绝对路径",
+            Title: t("unconfigured_title"),
+            SubTitle: t("unconfigured_subtitle"),
             Icon: {
               ImageType: "relative",
               ImageData: "icons/app.svg"
@@ -151,8 +142,8 @@ export const plugin: Plugin = {
         return {
           Results: [
             {
-              Title: "🔒 数据库已锁定",
-              SubTitle: "请先在 Wox 主搜索框中解锁 KeePass 数据库",
+              Title: t("db_locked_title"),
+              SubTitle: t("selection_locked_subtitle"),
               Icon: {
                 ImageType: "relative",
                 ImageData: "icons/app.svg"
@@ -193,14 +184,14 @@ export const plugin: Plugin = {
 
       const password = query.Search.trim()
       if (!password) {
-        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "请输入主密码")
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, t("msg_enter_password"))
         return
       }
 
       if (api.ShowToolbarMsg) {
         await api.ShowToolbarMsg(actionCtx, {
           Id: toolbarMsgId,
-          Title: "正在解锁 KeePass 数据库...",
+          Title: t("msg_unlocking"),
           Icon: {
             ImageType: "relative",
             ImageData: "icons/app.svg"
@@ -210,14 +201,14 @@ export const plugin: Plugin = {
       }
       try {
         await session.unlock(config.kdbxFilePath, config.keyFilePath, password, config.autoLockTimeout)
-        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "数据库解锁成功")
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, t("msg_unlock_success"))
         await api.ChangeQuery(actionCtx, {
           QueryType: "input",
           QueryText: triggerPrefix
         })
         await api.Log(actionCtx, "Info", "KeePass database unlocked successfully")
       } catch {
-        await showTransientToolbarMsg(actionCtx, toolbarMsgId, "解锁失败：主密码错误或密钥文件无效")
+        await showTransientToolbarMsg(actionCtx, toolbarMsgId, t("msg_unlock_failed"))
       }
     }
 
@@ -225,15 +216,15 @@ export const plugin: Plugin = {
       return {
         Results: [
           {
-            Title: "🔒 数据库已锁定",
-            SubTitle: "输入主密码后按 Enter 解锁",
+            Title: t("db_locked_title"),
+            SubTitle: t("db_locked_subtitle"),
             Icon: {
               ImageType: "relative",
               ImageData: "icons/app.svg"
             },
             Actions: [
               {
-                Name: "解锁",
+                Name: t("action_unlock"),
                 IsDefault: true,
                 PreventHideAfterAction: true,
                 Action: performUnlock
@@ -258,8 +249,8 @@ export const plugin: Plugin = {
 
     if (searchTrimmed.toLowerCase() === "lock") {
       const lockActionItem: Result = {
-        Title: "🔒 锁定数据库",
-        SubTitle: "按 Enter 立即锁定 KeePass 数据库",
+        Title: t("action_lock_title"),
+        SubTitle: t("action_lock_subtitle"),
         Icon: {
           ImageType: "relative",
           ImageData: "icons/app.svg"
@@ -267,12 +258,12 @@ export const plugin: Plugin = {
         Score: 1000,
         Actions: [
           {
-            Name: "锁定",
+            Name: t("action_lock"),
             IsDefault: true,
             PreventHideAfterAction: true,
             Action: async (actionCtx: Context) => {
               session.lock()
-              await showTransientToolbarMsg(actionCtx, "keepass-lock", "数据库已锁定")
+              await showTransientToolbarMsg(actionCtx, "keepass-lock", t("msg_locked"))
               await api.ChangeQuery(actionCtx, {
                 QueryType: "input",
                 QueryText: triggerPrefix

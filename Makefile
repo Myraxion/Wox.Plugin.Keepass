@@ -53,7 +53,7 @@ else
 endif
 
 dev: check-init check-dev-deps
-	$(NODEMON) --watch $(SRC_DIR) --watch icons --watch plugin.json --ext json,ts,js,mjs,png --exec "$(MAKE) build"
+	$(NODEMON) --watch $(SRC_DIR) --watch icons --watch lang --watch plugin.json --ext json,ts,js,mjs,png --exec "$(MAKE) build"
 
 lint: check-init check-dev-deps
 	$(ESLINT) $(SRC_DIR)
@@ -71,9 +71,11 @@ endif
 	$(BABEL) $(DIST_DIR) --out-dir $(DIST_DIR)
 ifeq ($(OS),Windows_NT)
 	$(POWERSHELL) "Copy-Item 'icons' -Destination '$(DIST_DIR)' -Recurse"
+	$(POWERSHELL) "Copy-Item 'lang' -Destination '$(DIST_DIR)' -Recurse"
 	$(POWERSHELL) "Copy-Item 'plugin.json' -Destination '$(DIST_DIR)'"
 else
 	cp -r icons $(DIST_DIR)
+	cp -r lang $(DIST_DIR)
 	cp plugin.json $(DIST_DIR)
 endif
 

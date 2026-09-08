@@ -1,8 +1,8 @@
 {
   "Id": "1e0b1d37-f8b7-47c1-bbf9-9201930fcc82",
   "TriggerKeywords": ["kp", "keepass"],
-  "Name": "KeePass",
-  "Description": "Fast and secure credential search for KeePass.",
+  "Name": "i18n:plugin_name",
+  "Description": "i18n:plugin_description",
   "Author": "Myraxion",
   "Version": "0.0.6",
   "MinWoxVersion": "2.0.4",
@@ -21,9 +21,9 @@
       "Type": "textbox",
       "Value": {
         "Key": "kdbxFilePath",
-        "Label": "KeePass 数据库路径",
+        "Label": "i18n:setting_kdbx_file_path_label",
         "DefaultValue": "",
-        "Tooltip": "KeePass 数据库文件的绝对路径",
+        "Tooltip": "i18n:setting_kdbx_file_path_tooltip",
         "MaxLines": 1,
         "Validators": [
           {
@@ -38,9 +38,9 @@
       "Type": "textbox",
       "Value": {
         "Key": "keyFilePath",
-        "Label": "密钥文件路径",
+        "Label": "i18n:setting_key_file_path_label",
         "DefaultValue": "",
-        "Tooltip": "可选的 KeePass 密钥文件绝对路径",
+        "Tooltip": "i18n:setting_key_file_path_tooltip",
         "MaxLines": 1,
         "Validators": []
       },
@@ -50,9 +50,9 @@
       "Type": "textbox",
       "Value": {
         "Key": "autoLockTimeout",
-        "Label": "自动锁定超时 (秒)",
+        "Label": "i18n:setting_auto_lock_timeout_label",
         "DefaultValue": "900",
-        "Tooltip": "空闲自动锁定数据库的时间（秒），默认 900 秒（15 分钟），0 为不自动锁定",
+        "Tooltip": "i18n:setting_auto_lock_timeout_tooltip",
         "MaxLines": 1,
         "Validators": [
           {
@@ -70,9 +70,9 @@
       "Type": "textbox",
       "Value": {
         "Key": "excludeRules",
-        "Label": "排除规则",
+        "Label": "i18n:setting_exclude_rules_label",
         "DefaultValue": "",
-        "Tooltip": "逗号分隔的排除规则，使用 t: 标签或 g: 分组前缀，如 g:\"Recycle Bin\", t:Trash",
+        "Tooltip": "i18n:setting_exclude_rules_tooltip",
         "MaxLines": 1,
         "Validators": []
       },
