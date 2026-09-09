@@ -38,7 +38,12 @@ export function defaultKeystrokeTyper(text: string, platform: string = process.p
       payload = escapeSendKeys(text)
     } else if (platform === "darwin") {
       cmd = "osascript"
-      args = ["-e", 'tell application "System Events" to keystroke (do shell script "cat")']
+      args = [
+        "-l",
+        "JavaScript",
+        "-e",
+        "ObjC.import('Foundation'); var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile; var str = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js; Application('System Events').keystroke(str);"
+      ]
       payload = text
     } else {
       cmd = "xdotool"
@@ -165,23 +170,10 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
           ImageData: "icons/database/C39_History.svg"
         },
         Action: async (ctx: Context) => {
-          await executeCopy(ctx, totpInfo!.token)
-        }
-      })
-    }
-
-    if (hasUrl) {
-      actions.push({
-        Name: t("action_open_url"),
-        Hotkey: `${mod}+o`,
-        PreventHideAfterAction: false,
-        Icon: {
-          ImageType: "relative",
-          ImageData: "icons/database/C16_Mozilla_Firebird.svg"
-        },
-        Action: async () => {
-          const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
-          await opener(targetUrl)
+          const freshTotp = getEntryTotp(otpField, options?.timestamp)
+          if (freshTotp) {
+            await executeCopy(ctx, freshTotp.token)
+          }
         }
       })
     }
@@ -238,30 +230,34 @@ export function buildEntryActions(entry: FlattenedEntry, api: PublicAPI, options
           ImageData: "icons/database/C39_History.svg"
         },
         Action: async (ctx: Context) => {
-          await executeType(ctx, totpInfo!.token)
-        }
-      })
-    }
-
-    if (hasUrl) {
-      actions.push({
-        Name: t("action_open_url"),
-        Hotkey: `${mod}+o`,
-        PreventHideAfterAction: false,
-        Icon: {
-          ImageType: "relative",
-          ImageData: "icons/database/C16_Mozilla_Firebird.svg"
-        },
-        Action: async () => {
-          const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
-          await opener(targetUrl)
+          const freshTotp = getEntryTotp(otpField, options?.timestamp)
+          if (freshTotp) {
+            await executeType(ctx, freshTotp.token)
+          }
         }
       })
     }
   }
 
+  if (hasUrl) {
+    actions.push({
+      Name: t("action_open_url"),
+      Hotkey: `${mod}+o`,
+      PreventHideAfterAction: false,
+      Icon: {
+        ImageType: "relative",
+        ImageData: "icons/database/C16_Mozilla_Firebird.svg"
+      },
+      Action: async () => {
+        const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
+        await opener(targetUrl)
+      }
+    })
+  }
+
   if (actions.length > 0) {
     actions[0].IsDefault = true
+    delete actions[0].Hotkey
     for (let i = 1; i < actions.length; i++) {
       delete actions[i].IsDefault
     }

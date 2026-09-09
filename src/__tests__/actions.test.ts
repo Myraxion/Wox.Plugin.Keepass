@@ -183,7 +183,12 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       await defaultKeystrokeTyper("Pass+1", "darwin", mockSpawn as unknown as typeof spawn)
       expect(mockSpawn).toHaveBeenCalledWith(
         "osascript",
-        ["-e", 'tell application "System Events" to keystroke (do shell script "cat")'],
+        [
+          "-l",
+          "JavaScript",
+          "-e",
+          "ObjC.import('Foundation'); var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile; var str = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js; Application('System Events').keystroke(str);"
+        ],
         expect.objectContaining({
           stdio: ["pipe", "ignore", "ignore"],
           windowsHide: true
@@ -487,6 +492,7 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       expect(clipActions).toHaveLength(2) // Username and URL
       expect(clipActions[0].Name).toBe("复制用户名")
       expect(clipActions[0].IsDefault).toBe(true)
+      expect(clipActions[0].Hotkey).toBeUndefined()
       expect(clipActions[1].Name).toBe("打开网址")
       expect(clipActions[1].IsDefault).toBeUndefined()
 
@@ -495,11 +501,46 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       expect(typeActions).toHaveLength(2)
       expect(typeActions[0].Name).toBe("模拟键入用户名")
       expect(typeActions[0].IsDefault).toBe(true)
+      expect(typeActions[0].Hotkey).toBeUndefined()
       expect(typeActions[1].Name).toBe("打开网址")
 
       const typeUserAction = typeActions[0] as ExecuteResultAction
       await typeUserAction.Action(dummyCtx, { ResultId: "1", ResultActionId: "type-username", ContextData: {} })
       expect(mockTyper).toHaveBeenCalledWith("test.111@outlook.com")
+    })
+
+    test("when username is empty, omits username action", () => {
+      const noUserEntry: FlattenedEntry = {
+        entry: { fields: new Map([["Password", "secret"]]) } as unknown as kdbxweb.KdbxEntry,
+        title: "No User",
+        userName: "",
+        url: "https://example.com",
+        tags: [],
+        notes: "",
+        group: "Root",
+        groupName: "Root"
+      }
+
+      const actions = buildEntryActions(noUserEntry, mockApi)
+      expect(actions.some(a => a.Name.includes("用户名"))).toBe(false)
+    })
+
+    test("calculates fresh TOTP at action execution time rather than closure creation time", async () => {
+      const githubEntry = allEntries.find(e => e.title === "Github")!
+      const laterTime = 1700000045000 // 45 seconds later, next rotation period
+
+      const actions = buildEntryActions(githubEntry, mockApi, {
+        platform: "win32",
+        outputMode: "clipboard",
+        timestamp: laterTime
+      })
+      const copyTotpAction = actions.find(a => a.Name === "复制 TOTP") as ExecuteResultAction
+
+      await copyTotpAction.Action(dummyCtx, { ResultId: "1", ResultActionId: "copy-totp", ContextData: {} })
+      expect(mockApi.Copy).toHaveBeenCalledWith(dummyCtx, {
+        type: "text",
+        text: expect.stringMatching(/^\d{6}$/)
+      })
     })
 
     test("when only URL exists, Open URL is the only action and is set to default", () => {
