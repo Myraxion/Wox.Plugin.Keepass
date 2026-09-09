@@ -11,9 +11,10 @@
   "setting_exclude_rules_label": "Exclusion Rules",
   "setting_exclude_rules_tooltip": "Comma-separated exclusion rules with t: tag or g: group prefix, e.g. g:\"Recycle Bin\", t:Trash",
   "setting_output_mode_label": "Output Mode",
-  "setting_output_mode_tooltip": "Credential output mode: clipboard copy (default) or simulated keyboard typing",
+  "setting_output_mode_tooltip": "Credential output mode: clipboard copy (default) or simulated keyboard typing (experimental, tested on Windows only)",
   "setting_output_mode_clipboard": "Clipboard Copy",
-  "setting_output_mode_type": "Simulated Keyboard Typing",
+  "setting_output_mode_type": "Simulated Keyboard Typing (Experimental)",
+
   "unconfigured_title": "⚙️ Please configure KeePass database path",
   "unconfigured_subtitle": "Please specify the absolute path to database file in settings",
   "unconfigured_markdown": "# ⚙️ KeePass Database Not Configured\n\nKeePass database file path is not configured yet.\n\n### Configuration Steps:\n1. Open Wox Settings -> Plugins -> KeePass\n2. Fill in the absolute path to your database file in **KeePass Database Path** (`kdbxFilePath`)\n3. (Optional) If using a key file, fill in its absolute path in **Key File Path** (`keyFilePath`)\n4. (Optional) Adjust **Auto-lock Timeout** (`autoLockTimeout`) and **Exclusion Rules** (`excludeRules`)\n5. After saving settings, re-enter `kp` in the search box to get started",
