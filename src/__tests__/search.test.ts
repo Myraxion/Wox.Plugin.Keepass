@@ -520,15 +520,15 @@ describe("Icons & Search Engine", () => {
       expect(previewListData.items?.some((i: { subtitle?: string; title?: string }) => i.subtitle === "密码" && i.title === "••••••••••••")).toBe(true)
       expect(results[0].Preview?.PreviewTags?.some(t => t.Tooltip === "分组")).toBe(true)
 
-      // Tails validation: Github has TOTP, Github - 副本 does not
+      // Tails validation: Github has TOTP (only formatted token without seconds), Github - 副本 does not
       expect(results[0].Tails).toBeDefined()
       expect(results[0].Tails?.[0]?.Type).toBe("text")
-      expect(results[0].Tails?.[0]?.Text).toMatch(/^\d{3} \d{3} \(\d{1,2}s\)$/)
+      expect(results[0].Tails?.[0]?.Text).toMatch(/^\d{3} \d{3}$/)
       const noTotpResult = results.find(r => r.Title === "Github - 副本")
       expect(noTotpResult?.Tails).toBeUndefined()
     })
 
-    test("searchEntries attaches deterministic TOTP countdown badge and preview with timestamp", () => {
+    test("searchEntries attaches deterministic formatted TOTP token and preview countdown with timestamp", () => {
       const fixedTime = 1700000012000 // 28s remaining
       const results = searchEntries(db, "Github", fixedTime)
 
@@ -536,12 +536,26 @@ describe("Icons & Search Engine", () => {
       const githubResult = results[0]
       expect(githubResult.Title).toBe("Github")
       expect(githubResult.Tails).toBeDefined()
-      expect(githubResult.Tails?.[0]?.Text).toContain("(28s)")
+      expect(githubResult.Tails?.[0]?.Text).toMatch(/^\d{3} \d{3}$/)
+      expect(githubResult.Tails?.[0]?.TextCategory).toBeUndefined()
 
       const githubPreviewData = JSON.parse(githubResult.Preview?.PreviewData || "{}")
       const totpItem = githubPreviewData.items?.find((i: { subtitle?: string }) => i.subtitle === "TOTP")
       expect(totpItem?.tails?.[0]?.Text).toBe("28s")
+      expect(totpItem?.tails?.[0]?.TextCategory).toBeUndefined()
       expect(githubPreviewData.items?.some((i: { subtitle?: string; title?: string }) => i.subtitle === "密码" && i.title === "••••••••••••")).toBe(true)
+    })
+
+    test("searchEntries sets warning category on Tails when remaining seconds <= 5s", () => {
+      const fixedTime = 1700000035000 // 5s remaining
+      const results = searchEntries(db, "Github", fixedTime)
+
+      expect(results.length).toBeGreaterThanOrEqual(2)
+      const githubResult = results[0]
+      expect(githubResult.Title).toBe("Github")
+      expect(githubResult.Tails).toBeDefined()
+      expect(githubResult.Tails?.[0]?.Text).toMatch(/^\d{3} \d{3}$/)
+      expect(githubResult.Tails?.[0]?.TextCategory).toBe("warning")
     })
   })
 })

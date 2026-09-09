@@ -7,6 +7,7 @@ export interface TotpInfo {
   remainingSeconds: number
   badge: string
   period: number
+  category?: "warning"
 }
 
 const STEAM_CHARS = "23456789BCDFGHJKMNPQRTVWXY"
@@ -109,12 +110,14 @@ export function getEntryTotp(otpFieldText: string | undefined, timestamp?: numbe
 
     const formattedToken = formatTotpToken(token)
     const badge = `${formattedToken} (${remainingSeconds}s)`
+    const category = remainingSeconds <= 5 ? "warning" : undefined
     return {
       token,
       formattedToken,
       remainingSeconds,
       badge,
-      period
+      period,
+      category
     }
   } catch {
     return null

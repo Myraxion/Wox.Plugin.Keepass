@@ -55,7 +55,8 @@ export function buildEntryPreview(entry: FlattenedEntry, timestamp?: number): Wo
       tails: [
         {
           Type: "text",
-          Text: `${totpInfo.remainingSeconds}s`
+          Text: `${totpInfo.remainingSeconds}s`,
+          TextCategory: totpInfo.category
         }
       ]
     })

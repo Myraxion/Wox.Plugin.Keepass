@@ -263,7 +263,19 @@ export function isEntryExcluded(entry: FlattenedEntry, rules: ExcludeRule[]): bo
   return false
 }
 
-export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: SearchOptions): Result[] {
+export interface ActiveTotpItem {
+  id: string
+  entry: FlattenedEntry
+  lastToken: string
+  lastCategory?: "warning"
+}
+
+export interface SearchEntriesResult {
+  results: Result[]
+  totpEntries: ActiveTotpItem[]
+}
+
+export function searchEntriesWithDetails(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: SearchOptions): SearchEntriesResult {
   let activeApi: PublicAPI = fallbackApi
   let activeOptions: SearchOptions = options || {}
 
@@ -275,12 +287,12 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?:
 
   const trimmed = search.trim()
   if (!trimmed) {
-    return []
+    return { results: [], totpEntries: [] }
   }
 
   const tokens = tokenizeQuery(trimmed)
   if (tokens.length === 0) {
-    return []
+    return { results: [], totpEntries: [] }
   }
 
   const excludeRules = typeof activeOptions.excludeRules === "string" ? parseExcludeRules(activeOptions.excludeRules) : activeOptions.excludeRules || []
@@ -310,7 +322,11 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?:
     return a.entry.userName.localeCompare(b.entry.userName)
   })
 
-  return matched.map(m => {
+  const results: Result[] = []
+  const totpEntries: ActiveTotpItem[] = []
+
+  for (let i = 0; i < matched.length; i++) {
+    const m = matched[i]
     const otpField = getFieldText(m.entry.entry.fields.get("otp"))
     const totpInfo = getEntryTotp(otpField, activeOptions.timestamp)
     const entryUuid = m.entry.entry?.uuid?.id || `${m.entry.title}:${m.entry.userName}`
@@ -324,13 +340,27 @@ export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?:
       Actions: buildEntryActions(m.entry, activeApi, activeOptions)
     }
     if (totpInfo) {
+      const category = totpInfo.category
       result.Tails = [
         {
           Type: "text",
-          Text: totpInfo.badge
+          Text: totpInfo.formattedToken,
+          TextCategory: category
         }
       ]
+      totpEntries.push({
+        id: entryUuid,
+        entry: m.entry,
+        lastToken: totpInfo.token,
+        lastCategory: category
+      })
     }
-    return result
-  })
+    results.push(result)
+  }
+
+  return { results, totpEntries }
+}
+
+export function searchEntries(db: kdbxweb.Kdbx, search: string, apiOrTimestamp?: PublicAPI | number, options?: SearchOptions): Result[] {
+  return searchEntriesWithDetails(db, search, apiOrTimestamp, options).results
 }

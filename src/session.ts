@@ -8,6 +8,15 @@ let lastActiveTimestamp: number = 0
 let autoLockTimeoutSeconds: number = 900
 let autoLockTimer: NodeJS.Timeout | null = null
 let fileWatcher: fs.FSWatcher | null = null
+type LockListener = () => void
+const lockListeners: Set<LockListener> = new Set()
+
+export function onLock(listener: LockListener): () => void {
+  lockListeners.add(listener)
+  return () => {
+    lockListeners.delete(listener)
+  }
+}
 
 function resetAutoLockTimer(): void {
   if (autoLockTimer) {
@@ -95,6 +104,13 @@ export function lock(): void {
     }
     fileWatcher = null
   }
+  lockListeners.forEach(listener => {
+    try {
+      listener()
+    } catch {
+      // ignore
+    }
+  })
 }
 
 export function touchActivity(): void {

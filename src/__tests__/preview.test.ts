@@ -119,6 +119,27 @@ describe("Preview List Pane Generator", () => {
       expect(modTag).toBeDefined()
       expect(modTag?.Label).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     })
+
+    test("sets TextCategory to warning on TOTP tail when remaining seconds <= 5s", () => {
+      setLocale("zh_CN")
+      const githubEntry = allEntries.find(e => e.title === "Github")
+      expect(githubEntry).toBeDefined()
+
+      // 1700000035000 ms: 1700000035 % 30 = 25s into period -> 5s remaining
+      const fixedTime = 1700000035000
+      const preview = buildEntryPreview(githubEntry!, fixedTime)
+      const listData = JSON.parse(preview.PreviewData) as WoxPreviewListData
+      const totpItem = listData.items.find(i => i.subtitle === "TOTP")
+
+      expect(totpItem).toBeDefined()
+      expect(totpItem?.tails).toEqual([
+        {
+          Type: "text",
+          Text: "5s",
+          TextCategory: "warning"
+        }
+      ])
+    })
   })
 
   describe("Entry without password or TOTP (Dropbox（通行密钥）)", () => {

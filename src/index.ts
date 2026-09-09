@@ -1,9 +1,12 @@
 import { Context, Plugin, PluginInitParams, PublicAPI, Query, QueryReturn, Result } from "@wox-launcher/wox-plugin"
 import { setupArgon2 } from "./crypto"
 import * as session from "./session"
-import { searchEntries } from "./search"
+import { searchEntriesWithDetails } from "./search"
+import { startTotpTicker, stopTotpTicker } from "./ticker"
 import { extractUrlHostname } from "./url"
 import { initI18n, t } from "./i18n"
+
+let currentQueryId = 0
 
 interface PluginConfig {
   kdbxFilePath: string
@@ -104,10 +107,30 @@ export const plugin: Plugin = {
       }
     })
 
+    if (api.OnLeavePluginQuery) {
+      await api.OnLeavePluginQuery(ctx, () => {
+        stopTotpTicker()
+      })
+    }
+
+    if (api.OnUnload) {
+      await api.OnUnload(ctx, async () => {
+        stopTotpTicker()
+      })
+    }
+
+    session.onLock(() => {
+      stopTotpTicker()
+    })
+
     await api.Log(ctx, "Info", "KeePass plugin initialized")
   },
 
   query: async (_ctx: Context, query: Query): Promise<QueryReturn> => {
+    currentQueryId++
+    const queryId = currentQueryId
+    stopTotpTicker()
+
     if (!config.kdbxFilePath || config.kdbxFilePath.trim() === "") {
       return {
         Results: [
@@ -160,7 +183,10 @@ export const plugin: Plugin = {
       }
 
       const searchPattern = `url:"${hostname}"`
-      const results = searchEntries(db, searchPattern, api, { excludeRules: config.excludeRules })
+      const { results, totpEntries } = searchEntriesWithDetails(db, searchPattern, api, { excludeRules: config.excludeRules })
+      if (totpEntries.length > 0) {
+        startTotpTicker(_ctx, api, queryId, totpEntries)
+      }
       const pluginAppIcon = {
         ImageType: "relative" as const,
         ImageData: "icons/app.svg"
@@ -245,7 +271,10 @@ export const plugin: Plugin = {
     }
 
     const searchTrimmed = query.Search.trim()
-    const searchResults = searchEntries(db, query.Search, api, { excludeRules: config.excludeRules })
+    const { results: searchResults, totpEntries } = searchEntriesWithDetails(db, query.Search, api, { excludeRules: config.excludeRules })
+    if (totpEntries.length > 0) {
+      startTotpTicker(_ctx, api, queryId, totpEntries)
+    }
 
     if (searchTrimmed.toLowerCase() === "lock") {
       const lockActionItem: Result = {
