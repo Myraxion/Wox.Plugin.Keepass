@@ -13,6 +13,7 @@ interface PluginConfig {
   keyFilePath: string
   autoLockTimeout: number
   excludeRules: string
+  outputMode: "clipboard" | "type"
 }
 
 let api: PublicAPI
@@ -21,7 +22,8 @@ const config: PluginConfig = {
   kdbxFilePath: "",
   keyFilePath: "",
   autoLockTimeout: 900,
-  excludeRules: ""
+  excludeRules: "",
+  outputMode: "clipboard"
 }
 
 function getUnconfiguredMarkdown(): string {
@@ -72,11 +74,12 @@ export const plugin: Plugin = {
     setupArgon2()
     await initI18n(api, ctx)
 
-    const [kdbxFilePath, keyFilePath, autoLockTimeout, excludeRules] = await Promise.all([
+    const [kdbxFilePath, keyFilePath, autoLockTimeout, excludeRules, outputMode] = await Promise.all([
       api.GetSetting(ctx, "kdbxFilePath"),
       api.GetSetting(ctx, "keyFilePath"),
       api.GetSetting(ctx, "autoLockTimeout"),
-      api.GetSetting(ctx, "excludeRules")
+      api.GetSetting(ctx, "excludeRules"),
+      api.GetSetting(ctx, "outputMode")
     ])
 
     config.kdbxFilePath = kdbxFilePath || ""
@@ -84,6 +87,7 @@ export const plugin: Plugin = {
     const parsedTimeout = parseInt(autoLockTimeout, 10)
     config.autoLockTimeout = isNaN(parsedTimeout) ? 900 : Math.max(0, parsedTimeout)
     config.excludeRules = excludeRules || ""
+    config.outputMode = outputMode === "type" ? "type" : "clipboard"
 
     await api.OnSettingChanged(ctx, (_ctx: Context, key: string, value: string) => {
       switch (key) {
@@ -103,6 +107,9 @@ export const plugin: Plugin = {
         }
         case "excludeRules":
           config.excludeRules = value || ""
+          break
+        case "outputMode":
+          config.outputMode = value === "type" ? "type" : "clipboard"
           break
       }
     })
@@ -183,7 +190,10 @@ export const plugin: Plugin = {
       }
 
       const searchPattern = `url:"${hostname}"`
-      const { results, totpEntries } = searchEntriesWithDetails(db, searchPattern, api, { excludeRules: config.excludeRules })
+      const { results, totpEntries } = searchEntriesWithDetails(db, searchPattern, api, {
+        excludeRules: config.excludeRules,
+        outputMode: config.outputMode
+      })
       if (totpEntries.length > 0) {
         startTotpTicker(_ctx, api, queryId, totpEntries)
       }
@@ -271,7 +281,10 @@ export const plugin: Plugin = {
     }
 
     const searchTrimmed = query.Search.trim()
-    const { results: searchResults, totpEntries } = searchEntriesWithDetails(db, query.Search, api, { excludeRules: config.excludeRules })
+    const { results: searchResults, totpEntries } = searchEntriesWithDetails(db, query.Search, api, {
+      excludeRules: config.excludeRules,
+      outputMode: config.outputMode
+    })
     if (totpEntries.length > 0) {
       startTotpTicker(_ctx, api, queryId, totpEntries)
     }

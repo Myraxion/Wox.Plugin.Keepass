@@ -80,6 +80,29 @@
         "Validators": []
       },
       "IsPlatformSpecific": false
+    },
+    {
+      "Type": "select",
+      "Value": {
+        "Key": "outputMode",
+        "Label": "i18n:setting_output_mode_label",
+        "DefaultValue": "clipboard",
+        "Tooltip": "i18n:setting_output_mode_tooltip",
+        "IsMulti": false,
+        "Options": [
+          {
+            "Label": "i18n:setting_output_mode_clipboard",
+            "Value": "clipboard"
+          },
+          {
+            "Label": "i18n:setting_output_mode_type",
+            "Value": "type"
+          }
+        ],
+        "Validators": [],
+        "Style": {}
+      },
+      "IsPlatformSpecific": false
     }
   ]
 }
