@@ -26,6 +26,79 @@ export function defaultUrlOpener(url: string, platform: string = process.platfor
   }
 }
 
+const WINDOWS_SEND_INPUT_SCRIPT = `
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8;
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class NativeKeyboard {
+  private const uint INPUT_KEYBOARD = 1;
+  private const uint KEYEVENTF_KEYUP = 0x0002;
+  private const uint KEYEVENTF_UNICODE = 0x0004;
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct MOUSEINPUT {
+    public int dx;
+    public int dy;
+    public uint mouseData;
+    public uint dwFlags;
+    public uint time;
+    public IntPtr dwExtraInfo;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct KEYBDINPUT {
+    public ushort wVk;
+    public ushort wScan;
+    public uint dwFlags;
+    public uint time;
+    public IntPtr dwExtraInfo;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct HARDWAREINPUT {
+    public uint uMsg;
+    public ushort wParamL;
+    public ushort wParamH;
+  }
+
+  [StructLayout(LayoutKind.Explicit)]
+  public struct InputUnion {
+    [FieldOffset(0)] public KEYBDINPUT ki;
+    [FieldOffset(0)] public MOUSEINPUT mi;
+    [FieldOffset(0)] public HARDWAREINPUT hi;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct INPUT {
+    public uint type;
+    public InputUnion union;
+  }
+
+  [DllImport("user32.dll", SetLastError = true)]
+  private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+  public static void SendText(string text) {
+    if (string.IsNullOrEmpty(text)) return;
+    INPUT[] inputs = new INPUT[text.Length * 2];
+    int cbSize = Marshal.SizeOf(typeof(INPUT));
+    for (int i = 0; i < text.Length; i++) {
+      char c = text[i];
+      inputs[i * 2].type = INPUT_KEYBOARD;
+      inputs[i * 2].union.ki.wScan = (ushort)c;
+      inputs[i * 2].union.ki.dwFlags = KEYEVENTF_UNICODE;
+
+      inputs[i * 2 + 1].type = INPUT_KEYBOARD;
+      inputs[i * 2 + 1].union.ki.wScan = (ushort)c;
+      inputs[i * 2 + 1].union.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+    }
+    SendInput((uint)inputs.Length, inputs, cbSize);
+  }
+}
+"@; [NativeKeyboard]::SendText([Console]::In.ReadToEnd())
+`.trim()
+
 export function defaultKeystrokeTyper(text: string, platform: string = process.platform, spawnFn: typeof spawn = spawn): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let cmd: string
@@ -34,8 +107,8 @@ export function defaultKeystrokeTyper(text: string, platform: string = process.p
 
     if (platform === "win32") {
       cmd = "powershell.exe"
-      args = ["-NoProfile", "-NonInteractive", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait([Console]::In.ReadToEnd())"]
-      payload = escapeSendKeys(text)
+      args = ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_SEND_INPUT_SCRIPT]
+      payload = text
     } else if (platform === "darwin") {
       cmd = "osascript"
       args = [

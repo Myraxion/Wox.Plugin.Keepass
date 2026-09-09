@@ -52,6 +52,10 @@ _Avoid_: Command, Operation, Task
 A user configuration (`outputMode`: `clipboard` or `type`) dictating whether Enter defaults to clipboard copying or simulated keyboard typing, with secondary actions and hotkeys adapting accordingly.
 _Avoid_: Typing mode, Input mode, Paste mode
 
+**Keystroke Typing**:
+Simulated keyboard entry injecting Unicode character events directly into the active foreground window to bypass clipboard monitoring and Chinese IME composition windows.
+_Avoid_: Auto-type, Key sender, Type simulation
+
 **Auto-lock Timeout**:
 The configurable idle duration of inactivity (in seconds) after which the in-memory decrypted database is purged. Set to 0 to disable automatic locking.
 _Avoid_: Expiration, TTL, Sleep time

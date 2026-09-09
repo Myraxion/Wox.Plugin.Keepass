@@ -165,18 +165,34 @@ describe("Platform-Adaptive Keyboard Actions & Auto-Hide", () => {
       mockSpawn = jest.fn().mockReturnValue(mockChild as unknown as ChildProcess)
     })
 
-    test("launches powershell with escaped payload on win32 via stdin", async () => {
+    test("launches powershell with raw payload on win32 via stdin", async () => {
       await defaultKeystrokeTyper("Pass+1", "win32", mockSpawn as unknown as typeof spawn)
       expect(mockSpawn).toHaveBeenCalledWith(
         "powershell.exe",
-        ["-NoProfile", "-NonInteractive", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait([Console]::In.ReadToEnd())"],
+        expect.arrayContaining(["-NoProfile", "-NonInteractive", "-Command"]),
         expect.objectContaining({
           stdio: ["pipe", "ignore", "ignore"],
           windowsHide: true
         })
       )
-      expect(mockChild.stdin.write).toHaveBeenCalledWith("Pass{+}1")
+      const commandArg = mockSpawn.mock.calls[0][1][3]
+      expect(commandArg).toContain("SendInput")
+      expect(commandArg).toContain("[Console]::InputEncoding = [System.Text.Encoding]::UTF8")
+      expect(commandArg).toContain("[Console]::In.ReadToEnd()")
+      expect(mockChild.stdin.write).toHaveBeenCalledWith("Pass+1")
       expect(mockChild.stdin.end).toHaveBeenCalled()
+    })
+
+    test("passes complex special characters unescaped on win32", async () => {
+      const complex = "P@ss+w0rd^{123}%~[]()"
+      await defaultKeystrokeTyper(complex, "win32", mockSpawn as unknown as typeof spawn)
+      expect(mockChild.stdin.write).toHaveBeenCalledWith(complex)
+    })
+
+    test("supports non-ASCII and Unicode characters on win32", async () => {
+      const unicodeStr = "管理员密码_测试éñ"
+      await defaultKeystrokeTyper(unicodeStr, "win32", mockSpawn as unknown as typeof spawn)
+      expect(mockChild.stdin.write).toHaveBeenCalledWith(unicodeStr)
     })
 
     test("launches osascript with raw payload on darwin via stdin", async () => {

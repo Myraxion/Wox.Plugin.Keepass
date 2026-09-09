@@ -1,0 +1,7 @@
+# Unicode Keystroke Injection and Chinese IME Bypass on Windows
+
+To resolve an issue where simulated keyboard typing triggers Chinese Input Method Editor (IME) composition windows (such as Microsoft Pinyin or Sogou IME) and corrupts sensitive credentials on Windows, we upgrade the Windows keystroke execution backend from `System.Windows.Forms.SendKeys` to Win32 `SendInput` with `KEYEVENTF_UNICODE` (0x0004).
+
+Rather than dispatching virtual-key codes that are intercepted by the target window's active IME message loop, the new implementation sends paired `KEYEVENTF_UNICODE` down/up input events (`wVk = 0`, `wScan = char`). The operating system translates these `VK_PACKET` events directly into `WM_CHAR` messages, directly dispatched to the target window and bypassing active IME composition candidates regardless of whether the foreground window is in Chinese or English mode.
+
+Furthermore, Unicode injection accepts raw characters directly, completely eliminating the need for `SendKeys` special character escaping (`+^%~{}[]()`). Sensitive credentials continue to be streamed strictly via standard input (`stdin`) to the hidden PowerShell child process, preserving the security invariant where passwords never hit process command-line arguments, telemetry, logs, or disk. The `escapeSendKeys` utility function remains exported for backwards compatibility, but Windows typing pipelines now transmit raw strings untouched.
