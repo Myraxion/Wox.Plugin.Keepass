@@ -48,6 +48,10 @@ _Avoid_: Details view, Inspector, Sidebar
 An executable keyboard command bound to an entry (e.g., Copy Password, Copy TOTP, Open URL, Lock Database).
 _Avoid_: Command, Operation, Task
 
+**Output Mode**:
+A user configuration (`outputMode`: `clipboard` or `type`) dictating whether Enter defaults to clipboard copying or simulated keyboard typing, with secondary actions and hotkeys adapting accordingly.
+_Avoid_: Typing mode, Input mode, Paste mode
+
 **Auto-lock Timeout**:
 The configurable idle duration of inactivity (in seconds) after which the in-memory decrypted database is purged. Set to 0 to disable automatic locking.
 _Avoid_: Expiration, TTL, Sleep time
