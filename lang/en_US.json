@@ -33,7 +33,7 @@
   "msg_no_url": "URL is not configured",
   "preview_untitled": "Untitled",
   "preview_username": "Username",
-  "preview_none": "*(None)*",
+  "preview_none": "(None)",
   "preview_password": "Password",
   "preview_totp": "TOTP",
   "preview_url": "URL",

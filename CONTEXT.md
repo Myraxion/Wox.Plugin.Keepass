@@ -37,7 +37,7 @@ The runtime state where the database is not decrypted or in-memory credentials h
 _Avoid_: Closed state, Sealed state
 
 **Preview Card**:
-The right-hand markdown pane displaying formatted entry credentials, entry tags, notes, dynamic TOTP, and metadata badges.
+The right-hand native list preview pane displaying formatted entry credential rows, dynamic TOTP countdown tails, and metadata badges.
 _Avoid_: Details view, Inspector, Sidebar
 
 **Action**:

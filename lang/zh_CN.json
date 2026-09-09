@@ -33,7 +33,7 @@
   "msg_no_url": "未配置网址",
   "preview_untitled": "未命名",
   "preview_username": "用户名",
-  "preview_none": "*(无)*",
+  "preview_none": "(无)",
   "preview_password": "密码",
   "preview_totp": "TOTP",
   "preview_url": "网址",

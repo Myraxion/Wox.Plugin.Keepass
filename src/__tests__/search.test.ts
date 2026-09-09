@@ -87,7 +87,8 @@ describe("Icons & Search Engine", () => {
       const tagResults = searchEntries(db, "人工智能")
       expect(tagResults.length).toBeGreaterThanOrEqual(1)
       expect(tagResults.some(r => r.Title === "DeepSeek - main - 副本")).toBe(true)
-      expect(tagResults[0].Preview?.PreviewData).toContain("- **标签**:")
+      const tagListData = JSON.parse(tagResults[0].Preview?.PreviewData || "{}")
+      expect(tagListData.items?.some((i: { subtitle?: string }) => i.subtitle === "标签")).toBe(true)
 
       // Match by Notes
       const notesResults = searchEntries(db, "森森森")
@@ -514,9 +515,9 @@ describe("Icons & Search Engine", () => {
 
       // Preview card validation
       expect(results[0].Preview).toBeDefined()
-      expect(results[0].Preview?.PreviewType).toBe("markdown")
-      expect(results[0].Preview?.PreviewData).toContain("# Github")
-      expect(results[0].Preview?.PreviewData).toContain("- **密码**: ••••••••••••")
+      expect(results[0].Preview?.PreviewType).toBe("list")
+      const previewListData = JSON.parse(results[0].Preview?.PreviewData || "{}")
+      expect(previewListData.items?.some((i: { subtitle?: string; title?: string }) => i.subtitle === "密码" && i.title === "••••••••••••")).toBe(true)
       expect(results[0].Preview?.PreviewTags?.some(t => t.Tooltip === "分组")).toBe(true)
 
       // Tails validation: Github has TOTP, Github - 副本 does not
@@ -537,8 +538,10 @@ describe("Icons & Search Engine", () => {
       expect(githubResult.Tails).toBeDefined()
       expect(githubResult.Tails?.[0]?.Text).toContain("(28s)")
 
-      expect(githubResult.Preview?.PreviewData).toContain("(28s)")
-      expect(githubResult.Preview?.PreviewData).toContain("••••••••••••")
+      const githubPreviewData = JSON.parse(githubResult.Preview?.PreviewData || "{}")
+      const totpItem = githubPreviewData.items?.find((i: { subtitle?: string }) => i.subtitle === "TOTP")
+      expect(totpItem?.tails?.[0]?.Text).toBe("28s")
+      expect(githubPreviewData.items?.some((i: { subtitle?: string; title?: string }) => i.subtitle === "密码" && i.title === "••••••••••••")).toBe(true)
     })
   })
 })

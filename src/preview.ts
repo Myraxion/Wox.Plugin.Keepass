@@ -1,4 +1,4 @@
-import { WoxPreview, WoxPreviewTag } from "@wox-launcher/wox-plugin"
+import { WoxPreview, WoxPreviewTag, WoxPreviewListData, WoxPreviewListItem } from "@wox-launcher/wox-plugin"
 import { FlattenedEntry, getFieldText } from "./search"
 import { getEntryTotp } from "./totp"
 import { t } from "./i18n"
@@ -18,45 +18,84 @@ export function formatPreviewDate(date?: Date): string {
 }
 
 export function buildEntryPreview(entry: FlattenedEntry, timestamp?: number): WoxPreview {
-  const lines: string[] = []
+  const items: WoxPreviewListItem[] = []
 
-  // Title
-  lines.push(`# ${entry.title || t("preview_untitled")}`)
-  lines.push("")
+  // 1. Username row (always present)
+  items.push({
+    icon: {
+      ImageType: "relative",
+      ImageData: "icons/database/C09_Identity.svg"
+    },
+    title: entry.userName || t("preview_none"),
+    subtitle: t("preview_username")
+  })
 
-  // Username
-  lines.push(`- **${t("preview_username")}**: ${entry.userName || t("preview_none")}`)
-
-  // Masked Password (12 bullets per security invariant & acceptance criteria)
+  // 2. Password row (always present, masked with 12 bullets if non-empty)
   const passwordText = getFieldText(entry.entry.fields.get("Password"))
-  const maskedPassword = passwordText.length > 0 ? "••••••••••••" : t("preview_none")
-  lines.push(`- **${t("preview_password")}**: ${maskedPassword}`)
+  items.push({
+    icon: {
+      ImageType: "relative",
+      ImageData: "icons/database/C00_Password.svg"
+    },
+    title: passwordText.length > 0 ? "••••••••••••" : t("preview_none"),
+    subtitle: t("preview_password")
+  })
 
-  // TOTP (if available)
+  // 3. TOTP row (only if validly configured)
   const otpFieldText = getFieldText(entry.entry.fields.get("otp"))
   const totpInfo = getEntryTotp(otpFieldText, timestamp)
   if (totpInfo) {
-    lines.push(`- **${t("preview_totp")}**: \`${totpInfo.formattedToken}\` (${totpInfo.remainingSeconds}s)`)
+    items.push({
+      icon: {
+        ImageType: "relative",
+        ImageData: "icons/database/C39_History.svg"
+      },
+      title: totpInfo.formattedToken,
+      subtitle: t("preview_totp"),
+      tails: [
+        {
+          Type: "text",
+          Text: `${totpInfo.remainingSeconds}s`
+        }
+      ]
+    })
   }
 
-  // Clickable URL (if available)
+  // 4. URL row (only if present)
   const rawUrl = entry.url ? entry.url.trim() : ""
   if (rawUrl) {
-    const clickableHref = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
-    lines.push(`- **${t("preview_url")}**: [${rawUrl}](${clickableHref})`)
+    items.push({
+      icon: {
+        ImageType: "relative",
+        ImageData: "icons/database/C16_Mozilla_Firebird.svg"
+      },
+      title: rawUrl,
+      subtitle: t("preview_url")
+    })
   }
 
-  // Tags (if available)
+  // 5. Tags row (only if non-empty)
   if (entry.tags && entry.tags.length > 0) {
-    lines.push(`- **${t("preview_tags")}**: ${entry.tags.join(", ")}`)
+    items.push({
+      icon: {
+        ImageType: "relative",
+        ImageData: "icons/database/C23_Icons.svg"
+      },
+      title: entry.tags.join(", "),
+      subtitle: t("preview_tags")
+    })
   }
 
-  // Notes
+  // 6. Notes row (only if non-empty)
   if (entry.notes && entry.notes.trim().length > 0) {
-    lines.push("")
-    lines.push(`### ${t("preview_notes")}`)
-    lines.push("")
-    lines.push(entry.notes)
+    items.push({
+      icon: {
+        ImageType: "relative",
+        ImageData: "icons/database/C44_KNotes.svg"
+      },
+      title: entry.notes.trim(),
+      subtitle: t("preview_notes")
+    })
   }
 
   // PreviewTags
@@ -75,9 +114,13 @@ export function buildEntryPreview(entry: FlattenedEntry, timestamp?: number): Wo
     })
   }
 
+  const listData: WoxPreviewListData = {
+    items
+  }
+
   return {
-    PreviewType: "markdown",
-    PreviewData: lines.join("\n"),
+    PreviewType: "list",
+    PreviewData: JSON.stringify(listData),
     PreviewTags: previewTags
   }
 }
