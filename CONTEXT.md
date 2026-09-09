@@ -28,6 +28,10 @@ _Avoid_: Folder, Category, Directory, Collection
 A time-based one-time password generated from an RFC 6238 URI stored strictly in the KeePassXC standard `otp` entry field.
 _Avoid_: OTP, 2FA token, Dynamic token
 
+**TOTP Ticker**:
+A single wall-clock aligned in-memory timer refreshing live TOTP countdown tails in the preview card and rotating formatted tokens in search result tails without background polling when inactive.
+_Avoid_: Interval loop, Background worker, Clock thread, Poller
+
 **Field Prefix**:
 A query syntax prefix (e.g., `u:`, `t:`, `url:`, `g:` or full-width `u：`, `t：`, `url：`, `g：`) used in searches, supporting double-quoted phrases for spaces (e.g., `u:"John Doe"` or `u：“John Doe”`).
 _Avoid_: Search filter, Search tag, Modifier
