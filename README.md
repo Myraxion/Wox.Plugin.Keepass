@@ -123,4 +123,5 @@ make package
 
 ## 📄 License
 
-MIT © [Myraxion](https://github.com/Myraxion/Wox.Plugin.Keepass)
+- 插件源码采用 [MIT License](https://opensource.org/licenses/MIT) 授权 © [Myraxion](https://github.com/Myraxion/Wox.Plugin.Keepass)
+- 内置数据库图标源自 [KeePassXC](https://github.com/keepassxreboot/keepassxc) 及其上游项目（遵循 MIT / CC0 1.0 协议），详情参见 [icons/database/LICENSE.md](icons/database/LICENSE.md)
