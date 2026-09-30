@@ -1,5 +1,5 @@
 {
-  "version": "0.0.6",
+  "version": "0.0.7",
   "devDependencies": {
     "@babel/cli": "^7.24.7",
     "@babel/core": "^7.24.7",
@@ -24,7 +24,7 @@
     "build": "make build"
   },
   "dependencies": {
-    "@wox-launcher/wox-plugin": "^0.0.138",
+    "@wox-launcher/wox-plugin": "0.0.141",
     "hash-wasm": "^4.12.0",
     "kdbxweb": "^2.1.1",
     "otpauth": "^9.5.2"
