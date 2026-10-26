@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@wox-launcher/wox-plugin':
-        specifier: ^0.0.138
-        version: 0.0.138
+        specifier: 0.0.144
+        version: 0.0.144
       hash-wasm:
         specifier: ^4.12.0
         version: 4.12.0
@@ -923,8 +923,8 @@ packages:
     resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
-  '@wox-launcher/wox-plugin@0.0.138':
-    resolution: {integrity: sha512-twwBlU7/MngIX7FFNOk3Dznkz5wKx3HXlPEgyyA8BMDr5xRRTuMpTJHxCGVVrmvFvjkKv+TNi8J9wbJ2RS2swA==}
+  '@wox-launcher/wox-plugin@0.0.144':
+    resolution: {integrity: sha512-CH/Qvkryma/gkjub6YhTGuP7+xHDA1Z2FaQUgJZeNgBfk7NATJddI8mUknD801CVuJ/UMQvS5AW5bBy0QXnQcQ==}
 
   '@xmldom/xmldom@0.7.13':
     resolution: {integrity: sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==}
@@ -3314,7 +3314,7 @@ snapshots:
 
   '@vercel/ncc@0.38.4': {}
 
-  '@wox-launcher/wox-plugin@0.0.138': {}
+  '@wox-launcher/wox-plugin@0.0.144': {}
 
   '@xmldom/xmldom@0.7.13': {}
 
